@@ -5,119 +5,124 @@ Created on Wed Jul 17 2019
 
 @author: jruzicka
 """
+
+# Libraries
 import os
-
-key_words = {"PORE", "CHANNEL", "MEMBRANE", "TRANSMEMBRANE"}
-
-def check_header(file):
-    with open(file) as input_file:
-        lines = input_file.readlines()
-    res = ""
-    header = lines[0]
-    classification = header[10:49]
-    words = classification.split()
-    for kw in key_words:
-        for w in words:
-            if kw == w:
-                res += w + " "
-    return res
-
-def check_title(file):
-    with open(file) as input_file:
-        lines = input_file.readlines()
-    res = ""
-    i = 1
-    while lines[i][0:5] == "TITLE":
-        title = lines[i]
-        classification = title[10:79]
-        words = classification.split()
-        for kw in key_words:
-            for w in words:
-                if kw == w:
-                    res += w + " "
-        i += 1
-    return res
-
-def check_keywds(file):
-    with open(file) as input_file:
-        lines = input_file.readlines()
-    res = ""
-    i = 0
-    if i < len(lines):
-        while lines[i][0:6] != "KEYWDS":
-            i += 1
-    if i < len(lines):
-        while lines[i][0:6] == "KEYWDS":
-            title = lines[i]
-            classification = title[10:78]
-            words = classification.split()
-            for j in range(len(words)):
-                if words[j][-1] == ",":
-                    words[j] = words[j][:-1]
-            for kw in key_words:
-                for w in words:
-                    if kw == w:
-                        res += w + " "
-            i += 1
-    return res
-
-def not_empty(str):
-    if str != "":
-        return True
-    return False
-
-def check_all(file):
-    score = 0
-    header = check_header(file)
-    if not_empty(header):
-        score += 20
-    title = check_title(file)
-    if not_empty(title):
-        score += 20
-    keywds = check_keywds(file)
-    if not_empty(keywds):
-        score += 20
-    if score >= 20:
-        return True
-    return False
-
-def check_release(path):
-    new_release = os.listdir(path)
-    dict = {}
-    #i = 1
-    for pdb_file in new_release:
-        value = check_all(pdb_file)
-        dict[pdb_file] = value
-        #print(i)
-        #i += 1
-    return dict
+import urllib.request
+import xml.etree.ElementTree as ET
+import statistics
 
 
-# Tests
-print(check_header("6g8z.pdb"))
-print(check_title("6g8z.pdb"))
-print(check_keywds("6g8z.pdb"))
-print(check_all("6g8z.pdb"))
-#print(check_all("6ji0-pdb-bundle1"))
+def download_uniprot_xml(pdbid):
+    """"
+    downloads the Uniprot xml file from pdb id
+    the pdbid as the parameter
+    """
+    urllib.request.urlretrieve("https://www.uniprot.org/uniprot/?query=" + pdbid + "&sort=score&format=xml",
+                               pdbid + ".xml")
 
-# New release
-new_release = os.listdir("Releases/1707/unzipped/pdb")
-print(new_release)
 
-# dictionary with pdbid.pdb : boolean
-# value determines if the research was successful or not
-rel = check_release("Releases/1707/unzipped/pdb")
-print(rel)
-nb_pores = 0
-for item in rel:
-    if rel[item]:
-        nb_pores += 1
-print(nb_pores)
+def download_xml(l):
+    """"
+    downloads all xml files from a list
+    (in this case a list of pores we want to get)
+    list contains the pdbids of the pores
+    """
+    for name in l:
+        download_uniprot_xml(name)
 
-# writes a file with the result of the research
-with open('release0717.txt', 'w') as f:
-    for item in rel:
-        f.write(item)
-        f.write(" ")
-        f.write("%s\n" % str(rel[item]))
-    f.write(str(nb_pores))
+
+def load_xml(file):
+    """"
+    opens an xml file, returns a tree
+    """
+    with open(file) as f:
+        tree = ET.parse(f)
+    return tree
+
+
+def find_uniprot_id(tree):
+    """"
+    returns the uniprot id from a tree
+    """
+    return tree.getroot()[0][0].text
+
+
+def find_tm_regions(tree):
+    """"
+    returns a list of transmembrane regions
+    """
+    l = []
+    for elements in tree.getroot()[0].findall("./{http://uniprot.org/uniprot}feature/[@type='transmembrane region']"):
+        begin = elements[0][0].attrib['position']
+        end = elements[0][1].attrib['position']
+        l.append(begin + '-' + end)
+    return l
+
+
+def find_pdb(tree):
+    """"
+    returns a dictionary in form {pdbid : chains}
+    """
+    d = {}
+    for elements in tree.getroot()[0].findall("./{http://uniprot.org/uniprot}dbReference/[@type='PDB']"):
+        id = elements.attrib['id']
+        try:
+            chains = elements[2].attrib['value']
+        except IndexError:
+            chains = elements[1].attrib['value']
+        d.update({id:chains})
+    return d
+
+
+def find_all(file):
+    """"
+    returns a tuple containing uniprot id, tm regions and pdb
+    """
+    tree = load_xml(file)
+    return find_uniprot_id(tree),find_tm_regions(tree), find_pdb(tree)
+
+
+def load_all(l):
+    """"
+    returns a list of tuple from all pores in the list specified as a parameter
+    """
+    list_data = []
+    for i in range(len(l)):
+        list_data.append(find_all(l[i] + '.xml'))
+        # print(find_all(l[i] + '.xml'))
+    return list_data
+
+
+with open('pores.txt') as f:  # get the list of pores
+    my_pores = f.readlines()
+    for i in range(len(my_pores)):
+        my_pores[i] = my_pores[i].rstrip('\n')
+print(my_pores)
+# download_xml(my_pores) # works
+
+my_tree = load_xml('3s3w.xml')
+print(find_uniprot_id(my_tree))
+print(find_tm_regions(my_tree))
+print(find_pdb(my_tree))
+print(find_all('3s3w.xml'))
+print(str(find_all(my_pores[0] + '.xml')) + '\n')
+# print(load_all(my_pores)) #  works
+list_pores = load_all(my_pores)
+for i in range(len(list_pores)):
+    print(str(list_pores[i]) + '/n')
+print(len(list_pores))
+list_tm = []
+for i in range(len(list_pores)):
+    if list_pores[i][1] != [] and list_pores[i][2] != {}:
+        list_tm.append(list_pores[i])
+print(len(list_tm))
+
+k = 0
+PORES_UP = []
+for i in range(len(list_tm)):
+    PORES_UP.append(my_pores[i].upper())
+    if PORES_UP[i] in list_tm[3]:
+        k += 1
+print(k)
+print(PORES_UP)

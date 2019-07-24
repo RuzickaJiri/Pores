@@ -104,7 +104,7 @@ def get_charge(d):
 
 def get_stat_charge(l):
     """"
-    returns the mean of charges of all pores in the list
+    returns the charge statistics (mean, stdev, min, max) of all pores in the list
     parameter - list of dictionaries from json files
     """
     charges = []
@@ -124,7 +124,7 @@ def get_hydrophobicity(d):
 
 def get_stat_hydrophobicity(l):
     """"
-    returns the mean of hydrophobicities of all pores in the list
+    returns the hydrophobicity statistics (mean, stdev, min, max) of all pores in the list
     parameter - list of dictionaries from json files
     """
     hydrophobicities = []
@@ -144,7 +144,7 @@ def get_hydropathy(d):
 
 def get_stat_hydropathy(l):
     """"
-    returns the mean of hydropathies of all pores in the list
+    returns the hydropathy statistics (mean, stdev, min, max) of all pores in the list
     parameter - list of dictionaries from json files
     """
     hydropathies = []
@@ -164,7 +164,7 @@ def get_polarity(d):
 
 def get_stat_polarity(l):
     """"
-    returns the mean of polarities of all pores in the list
+    returns the polarity statistics (mean, stdev, min, max) of all pores in the list
     parameter - list of dictionaries from json files
     """
     polarities = []
@@ -184,7 +184,7 @@ def get_mutability(d):
 
 def get_stat_mutability(l):
     """"
-    returns the mean of mutabilities of all pores in the list
+    returns the mutability statistics (mean, stdev, min, max) of all pores in the list
     parameter - list of dictionaries from json files
     """
     mutabilities = []
@@ -195,7 +195,7 @@ def get_stat_mutability(l):
 
 def hist_charge(l):
     """"
-    returns the mean of mutabilities of all pores in the list
+    returns the histogram of charges of all pores in the list
     parameter - list of dictionaries from json files
     """
     charges = []
@@ -211,7 +211,7 @@ def hist_charge(l):
 
 def hist_hydropathy(l):
     """"
-    returns the mean of mutabilities of all pores in the list
+    returns the histogram of hydropathies of all pores in the list
     parameter - list of dictionaries from json files
     """
     hydropathies = []
@@ -227,7 +227,7 @@ def hist_hydropathy(l):
 
 def hist_hydrophobicity(l):
     """"
-    returns the mean of mutabilities of all pores in the list
+    returns the histogram of hydrophobicities of all pores in the list
     parameter - list of dictionaries from json files
     """
     hydrophobicities = []
@@ -241,10 +241,9 @@ def hist_hydrophobicity(l):
     return plt.show()
 
 
-
 def hist_polarity(l):
     """"
-    returns the mean of mutabilities of all pores in the list
+    returns the histogram of polarities of all pores in the list
     parameter - list of dictionaries from json files
     """
     polarities = []
@@ -258,10 +257,9 @@ def hist_polarity(l):
     return plt.show()
 
 
-
 def hist_mutability(l):
     """"
-    returns the mean of mutabilities of all pores in the list
+    returns the histogram of mutabilities of all pores in the list
     parameter - list of dictionaries from json files
     """
     mutabilities = []
@@ -276,8 +274,13 @@ def hist_mutability(l):
 
 
 def get_residues(d):
+    """"
+     returns the dictionary containing the residues as keys and its quantity as values
+     parameter - dictionary from json file
+    """
     residues = {}
-    residues_json = d['channels']['transmembranePores'][0]['layers']['residueFlow']
+    residues_json = d['channels']['transmembranePores'][0]['layers']['residueFlow']  # list
+
     for aa in residues_json:
         aa = aa[:3]
         if aa not in residues:
@@ -288,6 +291,11 @@ def get_residues(d):
 
 
 def sort_residues(d):
+    """"
+    returns the dictionary containing the sorted residues as keys and its quantity as values
+    sorts the residues by eliminating the het molecules
+    parameter - dictionary containing the unsorted residues
+    """
     residues = ['ala', 'arg', 'asn', 'asp', 'cys', 'glu', 'gln', 'gly', 'his', 'ile', 'leu', 'lys', 'met', 'phe', 'pro', 'ser', 'thr', 'trp', 'tyr', 'val']
     Residues = []
     for i in range(len(residues)):
@@ -300,6 +308,10 @@ def sort_residues(d):
 
 
 def get_stat_residues(l):
+    """"
+    returns the dictionary containing the residue quantity of all pores in the list
+    parameter - list of dictionaries from json files
+    """
     all_residues = {}
     residues = []
     for d in l:
@@ -316,11 +328,123 @@ def get_stat_residues(l):
 
 
 def get_stat_res_number(l):
+    """"
+    returns the residue statistics (total_residues, mean_by_residue, mean_by_pore) of all pores in the list
+    parameter - list of dictionaries from json files
+    """
     d = get_stat_residues(l)
     res_nb = 0
     for aa in d:
         res_nb += d[aa]
     return res_nb, res_nb/len(d), res_nb/len(l)
+
+
+def show_residues_ascending(d):
+    """"
+    sorts a dictionary by ascending value
+    parameter - dictionary with residues
+    """
+    return sorted(d.items(), key=operator.itemgetter(1))
+
+
+def get_residues_from_bottleneck(d):
+    """"
+    returns the dictionary containing the residue quantity in the bottleneck of this json file
+    parameter - dictionary from json files
+    """
+    residues = {}
+    residues_json = []
+    for i in range(len(d['channels']['transmembranePores'][0]['layers']['layersInfo'])):
+        if d['channels']['transmembranePores'][0]['layers']['layersInfo'][i]['layerGeometry']['bottleneck']:
+            residues_json = d['channels']['transmembranePores'][0]['layers']['layersInfo'][i]['residues']
+    for aa in residues_json:
+        aa = aa[:3]
+        if aa not in residues:
+            residues[aa] = 1
+        else:
+            residues[aa] += 1
+    return residues
+
+
+def get_stat_bottleneck(l):
+    """"
+    returns the dictionary containing the residue quantity in the bottleneck of all pores in the list
+    parameter - list of dictionaries from json files
+    """
+    btn_residues = {}
+    residues = []
+    for d in l:
+        residues.append(get_residues_from_bottleneck(d))
+    for d in residues:
+        for aa in d:
+            aa = aa[:3]
+            if aa not in btn_residues:
+                btn_residues[aa] = d[aa]
+            else:
+                btn_residues[aa] += d[aa]
+        btn_residues = sort_residues(btn_residues)
+    return btn_residues
+
+
+def get_stat_btn_number(l):
+    """"
+    returns the residue statistics (total_residues, mean_by_residue, mean_by_pore) of all pores in the list
+    parameter - list of dictionaries from json files
+    """
+    d = get_stat_bottleneck(l)
+    btn_nb = 0
+    for aa in d:
+        btn_nb += d[aa]
+    return btn_nb, btn_nb/len(d), btn_nb/len(l)
+
+
+def average_d(d):
+    """"
+    returns the residue propensity i.e. divides its quantity by the total number of residues
+    parameter - dictionary from json files
+    """
+    ave_dict = {}
+    nb = 0
+    for aa in d:
+        nb += d[aa]
+    for key in d:
+        ave_dict[key] = round(d[key]/(nb/len(d)), 2)
+    return ave_dict
+
+
+def get_length(d):
+    """"
+    returns the length of the pore from json file
+    parameter - dictionary from json files
+    """
+    return d['channels']['transmembranePores'][0]['layers']['layersInfo'][-1]['layerGeometry']['endDistance']
+
+
+def get_stat_length(l):
+    """"
+    returns the length statistics (mean, stdev, min, max) of all pores in the list
+    parameter - list of dictionaries from json files
+    """
+    lengths = []
+    for d in l:
+        lengths.append(get_length(d))
+    return statistics.mean(lengths), statistics.stdev(lengths), min(lengths), max(lengths)
+
+
+def hist_length(l):
+    """"
+    returns the histogram of lengths of all pores in the list
+    parameter - list of dictionaries from json files
+    """
+    lengths = []
+    for d in l:
+        lengths.append(get_length(d))
+    num_bins = 100
+    n, bins, patches = plt.hist(lengths, num_bins, facecolor='black', alpha=0.5)
+    plt.xlabel('Length')
+    plt.ylabel('Quantity')
+    plt.title('Histogram of Length')
+    return plt.show()
 
 
 # my_pores = get_pores_from_channelsdb("Content.txt")
@@ -351,13 +475,32 @@ print(get_residues(my_list[4]))
 resid = get_stat_residues(my_list)
 print(resid)
 print(len(resid))
-print(sorted(resid.items(), key=operator.itemgetter(1)))
+print(show_residues_ascending(resid))
 print(get_stat_res_number(my_list))
-hist_charge(my_list)
-hist_hydropathy(my_list)
-hist_hydrophobicity(my_list)
-hist_polarity(my_list)
-hist_mutability(my_list)
+# hist_charge(my_list)
+# hist_hydropathy(my_list)
+# hist_hydrophobicity(my_list)
+# hist_polarity(my_list)
+# hist_mutability(my_list)
+print(get_residues_from_bottleneck(my_list[0]))
+btnres = get_stat_bottleneck(my_list)
+print(btnres)
+print('')
+print(show_residues_ascending(resid))
+print(show_residues_ascending(btnres))
+print(get_stat_btn_number(my_list))
+print(show_residues_ascending(average_d(resid)))
+print(show_residues_ascending(average_d(btnres)))
 
+"""
+with open('residues.txt', 'w') as f:
+    for item in show_residues_ascending(average_d(resid)):
+        f.write(str(item))
+    f.write('\n')
+    for item in show_residues_ascending(average_d(btnres)):
+            f.write(str(item))
+"""
 
-
+print(get_length(my_list[1]))
+print(get_stat_length(my_list))
+# hist_length(my_list)

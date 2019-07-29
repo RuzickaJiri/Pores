@@ -8,6 +8,7 @@ Created on Fri Jul 19 2019
 # Libraries
 import os
 import ast
+import requests
 import urllib.request
 import json
 import statistics
@@ -15,8 +16,6 @@ import operator
 import numpy as np
 import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
-
-# download JSON
 
 
 def get_list_from_dir(path):
@@ -96,7 +95,7 @@ def load_all(l):
 def get_charge(d):
     """"
     returns the charge of the pore
-    parameter - dictionarz from json file
+    parameter - dictionary from json file
     """
     charge = d['channels']['transmembranePores'][0]['properties']['charge']
     return charge
@@ -287,6 +286,9 @@ def get_residues(d):
             residues[aa] = 1
         else:
             residues[aa] += 1
+    for aa in residues:
+        if aa in compare_residues(residues_json):
+            residues[aa] -= compare_residues(residues_json)[aa]
     return residues
 
 
@@ -363,6 +365,9 @@ def get_residues_from_bottleneck(d):
             residues[aa] = 1
         else:
             residues[aa] += 1
+    for aa in residues:
+        if aa in compare_residues(residues_json):
+            residues[aa] -= compare_residues(residues_json)[aa]
     return residues
 
 
@@ -447,6 +452,140 @@ def hist_length(l):
     return plt.show()
 
 
+def compare_residues(l):
+    """
+    finds residues aligning two times in the ResidueFlow (backbone)
+    :param l: list of residues
+    :return: residues present two times
+    """
+    backbones = []
+    backbones_d = {}
+    for aa in l:
+        if aa + ' Backbone' in l:
+            backbones.append(aa)
+    for aa in backbones:
+        aa = aa[:3]
+        if aa not in backbones_d:
+            backbones_d[aa] = 1
+        else:
+            backbones_d[aa] += 1
+    return backbones_d
+
+
+def get_all_memprotmd_references():
+    MEMPROTMD_ROOT_URI = "http://memprotmd.bioch.ox.ac.uk/"
+    return requests.post(MEMPROTMD_ROOT_URI + "api/references/all/mpm").json()
+
+
+def get_mpm_classes(l):
+    with open('mpm.txt', 'w') as f:
+        for d in l:
+            f.write("%s\n" % d['accession'])
+            for item in d['simulations']:
+                f.write("%s\n" % item[:4])
+
+
+def find_uniprot_from_sifts(pdbid):
+    urllib.request.urlretrieve("http://www.ebi.ac.uk/pdbe/api/mappings/uniprot/" + pdbid,  pdbid + "up.json")
+    d = load_json(pdbid + "up.json")
+    id = list(d[pdbid]['UniProt'].keys())[0]
+    return id
+
+
+def get_all_uniprotid(l):
+    uniprotid = []
+    i = 0
+    for pdbid in l:
+        try:
+            uniprotid.append(find_uniprot_from_sifts(pdbid))
+        except:
+            i += 1
+    print(i)
+    return uniprotid
+
+
+def download_uniprot_fasta(uniprotid, path):
+    """"
+    downloads the Uniprot fasta file from uniprot id
+    the uniprot id as the parameter
+    """
+    urllib.request.urlretrieve("https://www.uniprot.org/uniprot/" + uniprotid + ".fasta", path + uniprotid + ".fasta")
+
+
+def download_fasta(l, path):
+    """"
+    downloads all xml files from a list
+    (in this case a list of pores we want to get)
+    list contains the pdbids of the pores
+    """
+    for name in l:
+        download_uniprot_fasta(name, path)
+
+
+def count_presence(file, l):
+    """
+    returns the number of equalities between file and list
+    :param file: file of structures (pdbid)
+    :param l: list of pores (pdbid)
+    :return: integer k
+    """
+    with open(file) as f:
+        c = f.readlines()
+        for i in range(len(c)):
+            c[i] = c[i].rstrip('\n')
+    k = 0
+    for item in c:
+        if item in l:
+            k += 1
+    return k
+
+
+def get_res_fasta(file):
+    """
+    returns a string containing residues from a fasta file
+    """
+    with open(file) as f:
+        c = f.readlines()
+        for i in range(len(c)):
+            c[i] = c[i].rstrip('\n')
+        del c[0]
+    residues = ""
+    for line in c:
+        residues += line
+    return residues
+
+
+def get_res_all_tm(l):
+    """
+    gets the total of all TM residues
+    :param l: list of fasta files
+    :return: dictionary of all residues in all membrane proteins
+    """
+    all_residues = {}
+    residues = [] # list of strings
+    for fasta in l:
+        residues.append(get_res_fasta('C:/Users/Jirkův NB/Documents/CEITEC/fasta/membrane_proteins/' + fasta))
+    for s in residues:
+        for char in s:
+            if char not in all_residues:
+                all_residues[char] = 1
+            else:
+                all_residues[char] += 1
+    return all_residues
+
+
+def get_stat_res_number_all_tm(l):
+    """"
+    returns the residue statistics (total_residues, mean_by_residue, mean_by_pore) of all pores in the list,
+    in this case all TM proteins
+    parameter - list of dictionaries from json files
+    """
+    d = get_res_all_tm(l)
+    res_nb = 0
+    for aa in d:
+        res_nb += d[aa]
+    return res_nb, res_nb/len(d), res_nb/len(l)
+
 # my_pores = get_pores_from_channelsdb("Content.txt")
 # download_jsons(my_pores) #works
 
@@ -504,3 +643,44 @@ with open('residues.txt', 'w') as f:
 print(get_length(my_list[1]))
 print(get_stat_length(my_list))
 # hist_length(my_list)
+
+# ResidueFlow correction
+print(get_residues(load_json('3jaf.json')))
+
+get_mpm_classes(get_all_memprotmd_references())
+print(len(get_all_memprotmd_references()))
+
+membrane_p = []
+for item in get_all_memprotmd_references()[3]['simulations']:
+    membrane_p.append(item[:4])
+print(len(membrane_p))
+
+"""
+# mem_uniprot = get_all_uniprotid(membrane_p)
+with open('mem_prot_uniprot.txt', 'r') as f:
+    mem_prot_uniprot = f.readlines()
+    for i in range(len(mem_prot_uniprot)):
+        mem_prot_uniprot[i] = mem_prot_uniprot[i].rstrip('\n')
+# download_fasta(mem_prot_uniprot, 'C:/Users/Jirkův NB/Documents/CEITEC/fasta/membrane_proteins/')
+"""
+
+print(len(my_pores))
+l_classes = get_list_from_dir('C:/Users/Jirkův NB/Documents/CEITEC/fasta/')
+print(l_classes)
+l_classes.remove('membrane_proteins')
+for f in l_classes:
+    print(f + ": " + str(count_presence(f,my_pores)))
+
+no_tm_pores = []
+for item in my_pores:
+    if item not in membrane_p:
+        no_tm_pores.append(item)
+print(no_tm_pores)
+print(len(no_tm_pores))
+
+print(get_res_fasta('C:/Users/Jirkův NB/Documents/CEITEC/fasta/membrane_proteins/A0A0B4ZYM1.fasta'))
+list_fasta = get_list_from_dir('C:/Users/Jirkův NB/Documents/CEITEC/fasta/membrane_proteins/')
+my_d_all_tm = get_res_all_tm(list_fasta)
+print(show_residues_ascending(average_d(my_d_all_tm)))
+print(len(my_d_all_tm))
+print(get_stat_res_number_all_tm(list_fasta))

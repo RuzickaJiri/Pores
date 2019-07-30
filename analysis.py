@@ -473,11 +473,20 @@ def compare_residues(l):
 
 
 def get_all_memprotmd_references():
+    """
+    commands all the references from the mpm database from the MemProtMD site
+    :return: json file
+    """
     MEMPROTMD_ROOT_URI = "http://memprotmd.bioch.ox.ac.uk/"
     return requests.post(MEMPROTMD_ROOT_URI + "api/references/all/mpm").json()
 
 
 def get_mpm_classes(l):
+    """
+    creates a text file with all the references from mpm
+    :param l: list of references
+    :return: None
+    """
     with open('mpm.txt', 'w') as f:
         for d in l:
             f.write("%s\n" % d['accession'])
@@ -486,6 +495,11 @@ def get_mpm_classes(l):
 
 
 def find_uniprot_from_sifts(pdbid):
+    """
+    finds the uniprot id from pdb id thanks to sifts API
+    :param pdbid: pdb id
+    :return: uniprot id
+    """
     urllib.request.urlretrieve("http://www.ebi.ac.uk/pdbe/api/mappings/uniprot/" + pdbid,  pdbid + "up.json")
     d = load_json(pdbid + "up.json")
     id = list(d[pdbid]['UniProt'].keys())[0]
@@ -493,6 +507,11 @@ def find_uniprot_from_sifts(pdbid):
 
 
 def get_all_uniprotid(l):
+    """
+    gets all uniprot ids from a list
+    :param l: list of pdb ids
+    :return: list of uniprot ids
+    """
     uniprotid = []
     i = 0
     for pdbid in l:
@@ -586,6 +605,58 @@ def get_stat_res_number_all_tm(l):
         res_nb += d[aa]
     return res_nb, res_nb/len(d), res_nb/len(l)
 
+
+def get_percentage(d):
+    new_d = {}
+    ave_d = average_d(d)
+    for aa in ave_d:
+        new_d[aa] = 5*ave_d[aa]
+    return new_d
+
+
+def download_cif(pdbid):
+    """"
+    downloads the PDB cif file from pdb id
+    the pdb id as the parameter
+    """
+    urllib.request.urlretrieve("https://files.rcsb.org/download/" + pdbid + ".cif",
+                               pdbid + ".cif")
+
+
+def download_all_cif(l):
+    """"
+    downloads all cif files from a list
+    (in this case a list of pores we want to get)
+    list contains the pdbids of the pores
+    """
+    for name in l:
+        download_cif(name)
+
+
+def change_template(tm, pdbid):
+    if tm:
+        data = load_json('template_TM.json')
+    else:
+        data = load_json('template.json')
+    data["PdbId"] = pdbid
+    if tm:
+        data["WorkingDirectory"] = "C:\\Computations\\Calc\\" + pdbid + '_TM'
+    else:
+        data["WorkingDirectory"] = "C:\\Computations\\Calc\\" + pdbid
+
+    if tm:
+        with open("C:/Computations/Calc/" + pdbid + "_TM.json", "w") as f:
+            json.dump(data, f)
+    else:
+        with open("C:/Computations/Calc/" + pdbid + ".json", "w") as f:
+            json.dump(data, f)
+
+
+def generate_mole_jsons(template, l):
+    for pdbid in l:
+        change_template(template, pdbid)
+
+
 # my_pores = get_pores_from_channelsdb("Content.txt")
 # download_jsons(my_pores) #works
 
@@ -613,9 +684,7 @@ print(get_residues(my_list[3]))
 print(get_residues(my_list[4]))
 resid = get_stat_residues(my_list)
 print(resid)
-print(len(resid))
-print(show_residues_ascending(resid))
-print(get_stat_res_number(my_list))
+
 # hist_charge(my_list)
 # hist_hydropathy(my_list)
 # hist_hydrophobicity(my_list)
@@ -625,11 +694,7 @@ print(get_residues_from_bottleneck(my_list[0]))
 btnres = get_stat_bottleneck(my_list)
 print(btnres)
 print('')
-print(show_residues_ascending(resid))
-print(show_residues_ascending(btnres))
-print(get_stat_btn_number(my_list))
-print(show_residues_ascending(average_d(resid)))
-print(show_residues_ascending(average_d(btnres)))
+
 
 """
 with open('residues.txt', 'w') as f:
@@ -669,7 +734,7 @@ l_classes = get_list_from_dir('C:/Users/Jirkův NB/Documents/CEITEC/fasta/')
 print(l_classes)
 l_classes.remove('membrane_proteins')
 for f in l_classes:
-    print(f + ": " + str(count_presence(f,my_pores)))
+    print(f + ": " + str(count_presence(f, my_pores)))
 
 no_tm_pores = []
 for item in my_pores:
@@ -684,3 +749,19 @@ my_d_all_tm = get_res_all_tm(list_fasta)
 print(show_residues_ascending(average_d(my_d_all_tm)))
 print(len(my_d_all_tm))
 print(get_stat_res_number_all_tm(list_fasta))
+my_d_all_tm.pop('X')
+print(show_residues_ascending(get_percentage(my_d_all_tm)))
+print(show_residues_ascending(get_percentage(resid)))
+print(show_residues_ascending(get_percentage(btnres)))
+
+# download_cif('6g8z')
+with open('pores.txt') as f:  # get the list of pores
+    my_pores_all = f.readlines()
+    for i in range(len(my_pores_all)):
+        my_pores_all[i] = my_pores_all[i].rstrip('\n')
+print(len(my_pores_all))
+# download_all_cif(my_pores_all)
+
+change_template('template.json', '3s3w')
+generate_mole_jsons(False, my_pores_all)
+generate_mole_jsons(True, my_pores_all)

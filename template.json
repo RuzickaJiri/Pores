@@ -1,0 +1,12 @@
+{
+"InMembrane": false,
+"IsBetaBarel": false,
+"InteriorThreshold": 0.8,
+"ProbeRadius": 13.0,
+"UserStructure": false,
+"PdbId": "",
+"Chains": [],
+"WorkingDirectory": "C:\\Computations\\Calc\\",
+"PyMolLocation": "C:\\Computations\\PyMOL\\PyMOLWin.exe",
+"MemEmbedLocation": "C:\\Computations\\Pores\\memembed.exe"
+}

@@ -286,9 +286,14 @@ def get_residues(d):
             residues[aa] = 1
         else:
             residues[aa] += 1
+    residues['MNC'] = 0
     for aa in residues:
         if aa in compare_residues(residues_json):
             residues[aa] -= compare_residues(residues_json)[aa]
+            if residues['MNC'] == 0:
+                residues['MNC'] = compare_residues(residues_json)[aa]
+            else:
+                residues['MNC'] += compare_residues(residues_json)[aa]
     return residues
 
 
@@ -298,7 +303,7 @@ def sort_residues(d):
     sorts the residues by eliminating the het molecules
     parameter - dictionary containing the unsorted residues
     """
-    residues = ['ala', 'arg', 'asn', 'asp', 'cys', 'glu', 'gln', 'gly', 'his', 'ile', 'leu', 'lys', 'met', 'phe', 'pro', 'ser', 'thr', 'trp', 'tyr', 'val']
+    residues = ['ala', 'arg', 'asn', 'asp', 'cys', 'glu', 'gln', 'gly', 'his', 'ile', 'leu', 'lys', 'met', 'phe', 'pro', 'ser', 'thr', 'trp', 'tyr', 'val', 'mnc']
     Residues = []
     for i in range(len(residues)):
         Residues.append(residues[i].upper())
@@ -365,9 +370,14 @@ def get_residues_from_bottleneck(d):
             residues[aa] = 1
         else:
             residues[aa] += 1
+    residues['MNC'] = 0
     for aa in residues:
         if aa in compare_residues(residues_json):
             residues[aa] -= compare_residues(residues_json)[aa]
+            if residues['MNC'] == 0:
+                residues['MNC'] = compare_residues(residues_json)[aa]
+            else:
+                residues['MNC'] += compare_residues(residues_json)[aa]
     return residues
 
 
@@ -461,7 +471,7 @@ def compare_residues(l):
     backbones = []
     backbones_d = {}
     for aa in l:
-        if aa + ' Backbone' in l:
+        if aa[-8:] == 'Backbone':
             backbones.append(aa)
     for aa in backbones:
         aa = aa[:3]
@@ -657,6 +667,79 @@ def generate_mole_jsons(template, l):
         change_template(template, pdbid)
 
 
+def load_all_basic(l):
+    my_list = []
+    for pdbid in l:
+        if os.path.exists("C:/Computations/Calc/" + pdbid + "\\json"):
+            my_path = "C:/Computations/Calc/" + pdbid + "/json/"
+            with open(my_path + 'data.json') as f:
+                py_json = json.load(f)
+            my_list.append(py_json)
+    return my_list
+
+
+def load_all_tm(l):
+    my_list = []
+    for pdbid in l:
+        if os.path.exists("C:/Computations/Calc/" + pdbid + "_TM/json"):
+            my_path = "C:/Computations/Calc/" + pdbid + "_TM/json/"
+            with open(my_path + 'data.json') as f:
+                py_json = json.load(f)
+            my_list.append(py_json)
+    return my_list
+
+
+def get_residues_mole(d):
+    """"
+     returns the dictionary containing the residues as keys and its quantity as values
+     parameter - dictionary from json file
+    """
+    residues = {}
+    residues_json = []
+    try:
+        residues_json = d['Channels']['Paths'][0]['Layers']['ResidueFlow']  # list
+    except IndexError:
+        try:
+            print(d['PdbId'])
+        except KeyError:
+            print(d)
+    for aa in residues_json:
+        aa = aa[:3]
+        if aa not in residues:
+            residues[aa] = 1
+        else:
+            residues[aa] += 1
+    residues['MNC'] = 0
+    for aa in residues:
+        if aa in compare_residues(residues_json):
+            residues[aa] -= compare_residues(residues_json)[aa]
+            if residues['MNC'] == 0:
+                residues['MNC'] = compare_residues(residues_json)[aa]
+            else:
+                residues['MNC'] += compare_residues(residues_json)[aa]
+    return residues
+
+
+def get_stat_residues_mole(l):
+    """"
+    returns the dictionary containing the residue quantity of all pores in the list
+    parameter - list of dictionaries from json files
+    """
+    all_residues = {}
+    residues = []
+    for d in l:
+        residues.append(get_residues_mole(d))
+    for d in residues:
+        for aa in d:
+            aa = aa[:3]
+            if aa not in all_residues:
+                all_residues[aa] = d[aa]
+            else:
+                all_residues[aa] += d[aa]
+    all_residues = sort_residues(all_residues)
+    return all_residues
+
+
 # my_pores = get_pores_from_channelsdb("Content.txt")
 # download_jsons(my_pores) #works
 
@@ -762,6 +845,16 @@ with open('pores.txt') as f:  # get the list of pores
 print(len(my_pores_all))
 # download_all_cif(my_pores_all)
 
-change_template('template.json', '3s3w')
-generate_mole_jsons(False, my_pores_all)
-generate_mole_jsons(True, my_pores_all)
+# change_template('template.json', '3s3w')
+# generate_mole_jsons(False, my_pores_all)
+# generate_mole_jsons(True, my_pores_all)
+
+my_basic = load_all_basic(my_pores_all)
+print(len(my_basic))
+print(get_residues_mole(my_basic[0]))
+basic_stat = get_stat_residues_mole(my_basic)
+del my_basic
+my_tm = load_all_tm(my_pores_all)
+print(len(my_tm))
+print(get_residues_mole(my_tm[0]))
+print(show_residues_ascending(get_stat_residues_mole(my_tm)))

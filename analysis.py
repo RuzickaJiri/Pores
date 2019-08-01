@@ -288,7 +288,7 @@ def get_residues(d):
             residues[aa] += 1
     residues['MNC'] = 0
     for aa in residues:
-        if aa in compare_residues(residues_json):
+        if aa in compare_residues(residues_json) and aa != 'GLY':
             residues[aa] -= compare_residues(residues_json)[aa]
             if residues['MNC'] == 0:
                 residues['MNC'] = compare_residues(residues_json)[aa]
@@ -372,7 +372,7 @@ def get_residues_from_bottleneck(d):
             residues[aa] += 1
     residues['MNC'] = 0
     for aa in residues:
-        if aa in compare_residues(residues_json):
+        if aa in compare_residues(residues_json) and aa != 'GLY':
             residues[aa] -= compare_residues(residues_json)[aa]
             if residues['MNC'] == 0:
                 residues['MNC'] = compare_residues(residues_json)[aa]
@@ -423,7 +423,7 @@ def average_d(d):
     for aa in d:
         nb += d[aa]
     for key in d:
-        ave_dict[key] = round(d[key]/(nb/len(d)), 2)
+        ave_dict[key] = round(d[key]/(nb/len(d)), 3)
     return ave_dict
 
 
@@ -620,7 +620,7 @@ def get_percentage(d):
     new_d = {}
     ave_d = average_d(d)
     for aa in ave_d:
-        new_d[aa] = 5*ave_d[aa]
+        new_d[aa] = round((100/len(ave_d))*ave_d[aa], 3)
     return new_d
 
 
@@ -699,10 +699,8 @@ def get_residues_mole(d):
     try:
         residues_json = d['Channels']['Paths'][0]['Layers']['ResidueFlow']  # list
     except IndexError:
-        try:
-            print(d['PdbId'])
-        except KeyError:
-            print(d)
+        pass
+        # print(d['Config']['PdbId'])
     for aa in residues_json:
         aa = aa[:3]
         if aa not in residues:
@@ -711,7 +709,7 @@ def get_residues_mole(d):
             residues[aa] += 1
     residues['MNC'] = 0
     for aa in residues:
-        if aa in compare_residues(residues_json):
+        if aa in compare_residues(residues_json) and aa != 'GLY':
             residues[aa] -= compare_residues(residues_json)[aa]
             if residues['MNC'] == 0:
                 residues['MNC'] = compare_residues(residues_json)[aa]
@@ -833,9 +831,7 @@ print(show_residues_ascending(average_d(my_d_all_tm)))
 print(len(my_d_all_tm))
 print(get_stat_res_number_all_tm(list_fasta))
 my_d_all_tm.pop('X')
-print(show_residues_ascending(get_percentage(my_d_all_tm)))
-print(show_residues_ascending(get_percentage(resid)))
-print(show_residues_ascending(get_percentage(btnres)))
+
 
 # download_cif('6g8z')
 with open('pores.txt') as f:  # get the list of pores
@@ -853,8 +849,13 @@ my_basic = load_all_basic(my_pores_all)
 print(len(my_basic))
 print(get_residues_mole(my_basic[0]))
 basic_stat = get_stat_residues_mole(my_basic)
+
 del my_basic
 my_tm = load_all_tm(my_pores_all)
 print(len(my_tm))
 print(get_residues_mole(my_tm[0]))
+print(show_residues_ascending(my_d_all_tm))
+print(show_residues_ascending(resid))
+print(show_residues_ascending(btnres))
+print(show_residues_ascending(basic_stat))
 print(show_residues_ascending(get_stat_residues_mole(my_tm)))

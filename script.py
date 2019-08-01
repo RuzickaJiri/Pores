@@ -99,7 +99,7 @@ def find_pdb(tree):
             chains = elements[2].attrib['value']
         except IndexError:
             chains = elements[1].attrib['value']
-        d.update({id:chains})
+        d.update({id: chains})
     return d
 
 
@@ -118,7 +118,7 @@ def load_all(l):
     list_data = []
     for i in range(len(l)):
         list_data.append(find_all(l[i] + '.xml'))
-        print(find_all(l[i] + '.xml'))
+        # print(find_all(l[i] + '.xml'))
     return list_data
 
 
@@ -139,6 +139,9 @@ def get_last_tm(t):
 
 
 def compare_tm_structure(t, pdb):
+    """"
+    compares if the pdb structure satisfies the transmembrane region
+    """
     tm1 = get_first_tm(t)
     tm2 = get_last_tm(t)
     st1 = get_first_st(t, pdb)
@@ -243,7 +246,7 @@ print(get_last_st(list_tm[0], '3S3W'))
 print(get_first_tm(list_tm[0]))
 print(get_last_tm(list_tm[0]))
 print(compare_tm_structure(list_tm[0], '3S3W'))
-my_di_str = compare_all(list_tm,PORES_UP)
+my_di_str = compare_all(list_tm, PORES_UP)
 print(my_di_str)
 print(len(my_di_str))
 c = 0
@@ -252,5 +255,14 @@ for key in my_di_str:
         c += 1
 print(c)
 
-
+pdb_keys = []
+for key in my_di_str:
+    for k in list_pores:
+        if key in k[2]:
+            for pdbid in k[2]:
+                if pdbid not in pdb_keys:
+                    pdb_keys.append(pdbid)
+print(pdb_keys)
+print(len(pdb_keys))
+print(len(pdb_keys)-c)
 

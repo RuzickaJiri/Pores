@@ -261,7 +261,54 @@ for key in my_di_str:
         if key in k[2]:
             for pdbid in k[2]:
                 if pdbid not in pdb_keys:
-                    pdb_keys.append(pdbid)
+                    pdb_keys.append(
+
+def get_residues_mole(d):
+    """"
+     returns the dictionary containing the residues as keys and its quantity as values
+     parameter - dictionary from json file
+    """
+    residues = {}
+    residues_json = []
+    try:
+        residues_json = d['Channels']['Paths'][0]['Layers']['ResidueFlow']  # list
+    except IndexError:
+        pass
+        # print(d['Config']['PdbId'])
+    for aa in residues_json:
+        aa = aa[:3]
+        if aa not in residues:
+            residues[aa] = 1
+        else:
+            residues[aa] += 1
+    residues['MNC'] = 0
+    for aa in residues:
+        if aa in compare_residues(residues_json) and aa != 'GLY':
+            residues[aa] -= compare_residues(residues_json)[aa]
+            if residues['MNC'] == 0:
+                residues['MNC'] = compare_residues(residues_json)[aa]
+            else:
+                residues['MNC'] += compare_residues(residues_json)[aa]
+    return residues
+
+
+def get_stat_residues_mole(l):
+    """"
+    returns the dictionary containing the residue quantity of all pores in the list
+    parameter - list of dictionaries from json files
+    """
+    all_residues = {}
+    residues = []
+    for d in l:
+        residues.append(get_residues_mole(d))
+    for d in residues:
+            aa = aa[:3]
+            if aa not in all_residues:
+                all_residues[aa] = d[aa]
+            else:
+                all_residues[aa] += d[aa]
+    all_residues = sort_residues(all_residues)
+    return all_residuespdbid)
 print(pdb_keys)
 print(len(pdb_keys))
 print(len(pdb_keys)-c)

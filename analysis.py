@@ -309,10 +309,37 @@ def get_dict_classes(database):
     return new_d
 
 
-def get_pores_tcdb(d):
+def get_pores_from_db(d, db):
     new_d = {}
+    list_accession = []
+    if db == 'tcdb':
+        for key in d:
+            if key[0] == '1':
+                new_d[key] = d[key]
+        return new_d
+    elif db == 'mpm':
+        list_accession = ["aquaporins", "ion_channels"]
+    elif db == 'mpstruc':
+        list_accession = ["channels-mechanosensitive", "channels-potassium-sodium-proton-ion-selective",
+                          "channels-calcium-ion-selective", "channels-transient-receptor-potential-trp",
+                          "channels-other-ion-channels", "channels-fluc-family", "channels-urea-transporters",
+                          "channels-aquaporins-and-glyceroporins", "channels-formate-nitrite-transporter-fnt-family",
+                          "channels-gap-junctions", "channels-amt-mep-rh-proteins", "protein-1eod", "protein-2vl0",
+                          "protein-3ehz", "protein-6fl9", "outer-membrane-carboxylate-channels-occ",
+                          "beta-barrel-membrane-proteins-porins-and-relatives"]
+
+    elif db == 'mpstruc-alpha':
+        list_accession = ["channels-mechanosensitive", "channels-potassium-sodium-proton-ion-selective",
+                          "channels-calcium-ion-selective", "channels-transient-receptor-potential-trp",
+                          "channels-other-ion-channels", "channels-fluc-family", "channels-urea-transporters",
+                          "channels-aquaporins-and-glyceroporins", "channels-formate-nitrite-transporter-fnt-family",
+                          "channels-gap-junctions", "channels-amt-mep-rh-proteins", "protein-1eod", "protein-2vl0",
+                          "protein-3ehz", "protein-6fl9"]
+    elif db == 'mpstruc-beta':
+        list_accession = ["outer-membrane-carboxylate-channels-occ",
+                          "beta-barrel-membrane-proteins-porins-and-relatives"]
     for key in d:
-        if key[0] == '1':
+        if key in list_accession:
             new_d[key] = d[key]
     return new_d
 
@@ -321,6 +348,7 @@ def get_database_classes(l, database):
     """
     creates a text file with all the references from mpm
     :param l: list of references
+    :param database: string, the given database
     :return: None
     """
     with open(database + '.txt', 'w') as f:
@@ -328,6 +356,42 @@ def get_database_classes(l, database):
             f.write("%s\n" % d['accession'])  # 'accession/title'
             for item in d['simulations']:
                 f.write("%s\n" % item[:4])
+
+
+def memprotmd_text_search(
+        search_term,
+        in_databases=["PDB", "mpm", "TCDB", "GO", "Pfam"],
+        size_bias=0.1,
+        n_results=10):
+    return requests.post(
+
+        MEMPROTMD_ROOT_URI
+        + "api/search/simple",
+
+        json={
+            "searchTerm": search_term,
+            "inDatabases": in_databases,
+            "numResults": n_results,
+            "sizeBias": size_bias
+        }
+
+    ).json()
+
+
+def memprotmd_advanced_search(collection_name, query, projection, options):
+    return requests.post(
+
+        MEMPROTMD_ROOT_URI
+        + "api/search/advanced",
+
+        json={
+            "collectionName": collection_name,
+            "query": query,
+            "projection": projection,
+            "options": options
+        }
+
+    ).json()
 
 
 def find_uniprot_from_sifts(pdbid):
@@ -507,6 +571,40 @@ def load_all_tm(l):
     return my_list
 
 
+def count_presence_lists(ll, lr):
+    i = 0
+    for item in ll:
+        if item in lr:
+            i += 1
+    return i
+
+
+def count_presences_lists(ll, lr, lt):
+    i = 0
+    for item in ll:
+        if item in lr:
+            if item in lt:
+                i += 1
+    return i
+
+
+def intersection_list(ll, lr):
+    new_l = []
+    for item in ll:
+        if item in lr:
+            new_l.append(item)
+    return new_l
+
+
+def list_from_dict(d):
+    new_l = []
+    for key in d:
+        for pdbid in d[key]:
+            if pdbid not in new_l:
+                new_l.append(pdbid)
+    return new_l
+
+
 # my_pores = get_pores_from_channelsdb("Content.txt")
 # download_jsons(my_pores) #works
 
@@ -535,6 +633,8 @@ print('')
 # histogram_property(my_list, 'charge')
 # histogram_property(my_list, 'length')
 
+# Residues analysis
+"""
 list_fasta = get_list_from_dir('C:/Users/Jirkův NB/Documents/CEITEC/fasta/membrane_proteins/')
 my_tm_proteins = get_res_all_tm(list_fasta)
 my_tm_proteins.pop('X')
@@ -551,6 +651,7 @@ print(show_residues_ascending(get_percentage(get_stat_residues(my_list, 'general
 print(show_residues_ascending(get_percentage(get_stat_residues(my_list, 'bottleneck'))))
 print(show_residues_ascending(get_percentage(basic_stat)))
 print(show_residues_ascending(get_percentage(get_stat_residues(my_tm, 'mole'))))
+"""
 
 print('')
 
@@ -660,3 +761,63 @@ with open('pores_tcdb_list.txt', 'w') as f:
             f.write("%s\n" % item)
 """
 
+MEMPROTMD_ROOT_URI = "http://memprotmd.bioch.ox.ac.uk/"
+print(memprotmd_text_search("pores", size_bias=10))
+
+print(memprotmd_advanced_search(
+    # Use the simulation collection
+    "refs",
+
+    # Look in the chains array of each simulation and see if
+    # any element in the array has the field tm_alpha equal to 7
+    {
+        "accession": {
+            "$in": ["outer-membrane-carboxylate-channels-occ", "beta-barrel-membrane-proteins-porins-and-relatives"]
+        }
+    },
+
+    # Projection - choose the fields to return. ID is returned
+    # by default.
+    {
+    },
+
+    # Options - sort and then limit
+    {
+    }
+))
+
+print(memprotmd_advanced_search("refs",
+    {"accession": {"$in": ["channels-mechanosensitive", "channels-potassium-sodium-proton-ion-selective",
+                           "channels-calcium-ion-selective", "channels-transient-receptor-potential-trp",
+                           "channels-other-ion-channels", "channels-fluc-family", "channels-urea-transporters",
+                           "channels-aquaporins-and-glyceroporins", "channels-formate-nitrite-transporter-fnt-family",
+                           "channels-gap-junctions", "channels-amt-mep-rh-proteins"]}},
+                                {}, {}))
+
+pores_tcdb_list = list_from_dict(get_pores_from_db(get_dict_classes('TCDB'), 'tcdb'))
+alpha_mpstruc_list = list_from_dict(get_pores_from_db(get_dict_classes('mpstruc'), 'mpstruc-alpha'))
+beta_mpstruc_list = list_from_dict(get_pores_from_db(get_dict_classes('mpstruc'), 'mpstruc-beta'))
+pores_mpm_list = list_from_dict(get_pores_from_db(get_dict_classes('mpm'), 'mpm'))
+
+mpstruc_list = alpha_mpstruc_list + beta_mpstruc_list
+all_pdbid_pores = []
+list_db = []
+list_db.append(pores_tcdb_list), list_db.append(mpstruc_list), list_db.append(pores_mpm_list)
+for db in list_db:
+    for pdbid in db:
+        if pdbid not in all_pdbid_pores:
+            all_pdbid_pores.append(pdbid)
+
+print(len(pores_mpm_list))
+print(len(pores_tcdb_list))
+print(len(mpstruc_list))
+print('')
+print(count_presence_lists(my_pores_all, pores_mpm_list))
+print(count_presence_lists(my_pores_all, pores_tcdb_list))
+print(count_presence_lists(my_pores_all, mpstruc_list))
+print(count_presence_lists(my_pores_all, all_pdbid_pores))
+print(count_presence_lists(mpstruc_list, pores_tcdb_list))
+print(count_presence_lists(mpstruc_list, pores_mpm_list))
+print(count_presence_lists(pores_mpm_list, pores_tcdb_list))
+print(count_presences_lists(pores_mpm_list, pores_tcdb_list, mpstruc_list))
+print(len(all_pdbid_pores))

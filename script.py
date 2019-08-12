@@ -9,6 +9,7 @@ Created on Wed Jul 17 2019
 # Libraries
 import os
 import urllib.request
+import requests
 import xml.etree.ElementTree as ET
 import statistics
 import json
@@ -151,7 +152,8 @@ def compare_tm_structure(t, pdb):
     else:
         return False
 
-def compare_tm_structure_rupt(t, pdb): # not finished
+
+def compare_tm_structure_rupt(t, pdb):  # not finished
     tm1 = get_first_tm(t)
     tm2 = get_last_tm(t)
     st1 = get_first_st(t, pdb)
@@ -179,6 +181,106 @@ def compare_all(list_tmr, list_por):
             # result.update({pupper[i]: compare_tm_structure_rupt(list_tmr[i], pupper[i])})
 
     return result
+
+
+def get_all_memprotmd_references(database):
+    """
+    commands all the references from the mpm database from the MemProtMD site
+    :return: json file (list)
+    """
+    MEMPROTMD_ROOT_URI = "http://memprotmd.bioch.ox.ac.uk/"
+    return requests.post(MEMPROTMD_ROOT_URI + "api/references/all/" + database).json()
+
+
+def get_dict_classes(database):
+    new_d = {}
+    l = get_all_memprotmd_references(database)
+    for d in l:
+        new_d[d['accession']] = []  # 'accession/title'
+        for item in d['simulations']:
+            new_d[d['accession']].append(item[:4])  # 'accession/title'
+    return new_d
+
+
+def get_pores_from_db(d, db):
+    new_d = {}
+    list_accession = []
+    if db == 'TCDB':
+        for key in d:
+            if key[0] == '1':
+                new_d[key] = d[key]
+        return new_d
+    elif db == 'mpm':
+        list_accession = ["aquaporins", "ion_channels"]
+    elif db == 'mpstruc':
+        list_accession = ["channels-mechanosensitive", "channels-potassium-sodium-proton-ion-selective",
+                          "channels-calcium-ion-selective", "channels-transient-receptor-potential-trp",
+                          "channels-other-ion-channels", "channels-fluc-family", "channels-urea-transporters",
+                          "channels-aquaporins-and-glyceroporins", "channels-formate-nitrite-transporter-fnt-family",
+                          "channels-gap-junctions", "channels-amt-mep-rh-proteins", "protein-1eod", "protein-2vl0",
+                          "protein-3ehz", "protein-6fl9", "outer-membrane-carboxylate-channels-occ",
+                          "beta-barrel-membrane-proteins-porins-and-relatives"]
+    elif db == 'mpstruc-alpha':
+        list_accession = ["channels-mechanosensitive", "channels-potassium-sodium-proton-ion-selective",
+                          "channels-calcium-ion-selective", "channels-transient-receptor-potential-trp",
+                          "channels-other-ion-channels", "channels-fluc-family", "channels-urea-transporters",
+                          "channels-aquaporins-and-glyceroporins", "channels-formate-nitrite-transporter-fnt-family",
+                          "channels-gap-junctions", "channels-amt-mep-rh-proteins", "protein-1eod", "protein-2vl0",
+                          "protein-3ehz", "protein-6fl9"]
+    elif db == 'mpstruc-beta':
+        list_accession = ["outer-membrane-carboxylate-channels-occ",
+                          "beta-barrel-membrane-proteins-porins-and-relatives"]
+    for key in d:
+        if key in list_accession:
+            new_d[key] = d[key]
+    return new_d
+
+
+def count_presence_lists(ll, lr):
+    i = 0
+    for item in ll:
+        if item in lr:
+            i += 1
+    return i
+
+
+def no_intersection_list(ll, lr):
+    new_l = []
+    for item in ll:
+        if item not in lr:
+            new_l.append(item)
+    return new_l
+
+
+def list_from_dict(d):
+    new_l = []
+    for key in d:
+        for pdbid in d[key]:
+            if pdbid not in new_l:
+                new_l.append(pdbid)
+    return new_l
+
+
+def get_pores_from_cdb():
+    pores = []
+    urllib.request.urlretrieve("https://webchem.ncbr.muni.cz/API/ChannelsDB/Content", 'content.json')
+    with open('content.json', 'r') as f:
+        content = json.load(f)
+        for pdbid in content:
+            if content[pdbid]['counts'][2] != 0:
+                pores.append(pdbid)
+    return pores
+
+def check_db():
+    structures = []
+    list_db = ['mpm', 'TCDB', 'mpstruc']
+    for db in list_db:
+        list_pores = list_from_dict(get_pores_from_db(get_dict_classes(db), db))
+        for pdbid in list_pores:
+            if pdbid not in structures:
+                structures.append(pdbid)
+    cdb = get_pores_from_cdb()
+    return no_intersection_list(structures, cdb)
 
 
 with open('pores.txt') as f:  # get the list of pores
@@ -261,55 +363,12 @@ for key in my_di_str:
         if key in k[2]:
             for pdbid in k[2]:
                 if pdbid not in pdb_keys:
-                    pdb_keys.append(
-
-def get_residues_mole(d):
-    """"
-     returns the dictionary containing the residues as keys and its quantity as values
-     parameter - dictionary from json file
-    """
-    residues = {}
-    residues_json = []
-    try:
-        residues_json = d['Channels']['Paths'][0]['Layers']['ResidueFlow']  # list
-    except IndexError:
-        pass
-        # print(d['Config']['PdbId'])
-    for aa in residues_json:
-        aa = aa[:3]
-        if aa not in residues:
-            residues[aa] = 1
-        else:
-            residues[aa] += 1
-    residues['MNC'] = 0
-    for aa in residues:
-        if aa in compare_residues(residues_json) and aa != 'GLY':
-            residues[aa] -= compare_residues(residues_json)[aa]
-            if residues['MNC'] == 0:
-                residues['MNC'] = compare_residues(residues_json)[aa]
-            else:
-                residues['MNC'] += compare_residues(residues_json)[aa]
-    return residues
-
-
-def get_stat_residues_mole(l):
-    """"
-    returns the dictionary containing the residue quantity of all pores in the list
-    parameter - list of dictionaries from json files
-    """
-    all_residues = {}
-    residues = []
-    for d in l:
-        residues.append(get_residues_mole(d))
-    for d in residues:
-            aa = aa[:3]
-            if aa not in all_residues:
-                all_residues[aa] = d[aa]
-            else:
-                all_residues[aa] += d[aa]
-    all_residues = sort_residues(all_residues)
-    return all_residuespdbid)
+                    pdb_keys.append(pdbid)
 print(pdb_keys)
 print(len(pdb_keys))
 print(len(pdb_keys)-c)
+
+print(len(check_db()))
+print(len(get_pores_from_cdb()))
+
 

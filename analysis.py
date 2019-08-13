@@ -16,6 +16,7 @@ import operator
 import numpy as np
 import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
+from script import check_db
 
 
 def get_list_from_dir(path):
@@ -325,9 +326,9 @@ def get_pores_from_db(d, db):
                           "channels-other-ion-channels", "channels-fluc-family", "channels-urea-transporters",
                           "channels-aquaporins-and-glyceroporins", "channels-formate-nitrite-transporter-fnt-family",
                           "channels-gap-junctions", "channels-amt-mep-rh-proteins", "protein-1eod", "protein-2vl0",
-                          "protein-3ehz", "protein-6fl9", "outer-membrane-carboxylate-channels-occ",
-                          "beta-barrel-membrane-proteins-porins-and-relatives"]
-
+                          "protein-3ehz", "protein-6fl9", "outer-membrane-carboxylate-channels-occ", "protein-1yc9",
+                          "beta-barrel-membrane-proteins-porins-and-relatives", "protein-1ek9", "protein-4mt4",
+                          "adventitious-membrane-proteins-beta-sheet-pore-forming-toxins-attack-complexes"]
     elif db == 'mpstruc-alpha':
         list_accession = ["channels-mechanosensitive", "channels-potassium-sodium-proton-ion-selective",
                           "channels-calcium-ion-selective", "channels-transient-receptor-potential-trp",
@@ -336,8 +337,9 @@ def get_pores_from_db(d, db):
                           "channels-gap-junctions", "channels-amt-mep-rh-proteins", "protein-1eod", "protein-2vl0",
                           "protein-3ehz", "protein-6fl9"]
     elif db == 'mpstruc-beta':
-        list_accession = ["outer-membrane-carboxylate-channels-occ",
-                          "beta-barrel-membrane-proteins-porins-and-relatives"]
+        list_accession = ["outer-membrane-carboxylate-channels-occ", "protein-4mt4", "protein-1yc9",
+                          "beta-barrel-membrane-proteins-porins-and-relatives", "protein-1ek9",
+                          "adventitious-membrane-proteins-beta-sheet-pore-forming-toxins-attack-complexes"]
     for key in d:
         if key in list_accession:
             new_d[key] = d[key]
@@ -360,7 +362,7 @@ def get_database_classes(l, database):
 
 def memprotmd_text_search(
         search_term,
-        in_databases=["PDB", "mpm", "TCDB", "GO", "Pfam"],
+        in_databases=["mpm", "TCDB", "mpstruc"],
         size_bias=0.1,
         n_results=10):
     return requests.post(
@@ -716,28 +718,28 @@ with open('mem_prot_uniprot.txt', 'r') as f:
 # download_fasta(mem_prot_uniprot, 'C:/Users/Jirkův NB/Documents/CEITEC/fasta/membrane_proteins/')
 """
 
-tcdb_class = get_dict_classes('TCDB')
+mpm_class = get_dict_classes('mpm')
 list_class_names = []
-for key in tcdb_class:
+for key in mpm_class:
     list_class_names.append(key)
 print(list_class_names)
 print(len(list_class_names))
 
 """
-with open('classes_tcdb.txt', 'w') as f:
-    with open('classes_tcdb_filled.txt', 'w') as fi:
-        for key in tcdb_class:
+with open('classes_mpm.txt', 'w') as f:
+    with open('classes_mpm_filled.txt', 'w') as fi:
+        for key in mpm_class:
             i = 0
             for pdbid in my_pores_all:
-                if pdbid in tcdb_class[key]:
+                if pdbid in mpm_class[key]:
                     i += 1
             # print(key + ': ' + str(i) + '/' + str(len(tcdb_class[key])))
             try:
-                f.write(key + ': ' + str(i) + '/' + str(len(tcdb_class[key])) + '\n')
+                f.write(key + ': ' + str(i) + '/' + str(len(mpm_class[key])) + '\n')
                 if i > 0:
-                    fi.write(key + ': ' + str(i) + '/' + str(len(tcdb_class[key])) + '\n')
+                    fi.write(key + ': ' + str(i) + '/' + str(len(mpm_class[key])) + '\n')
                 if i > 10:
-                    print(key + ': ' + str(i) + '/' + str(len(tcdb_class[key])))
+                    print(key + ': ' + str(i) + '/' + str(len(mpm_class[key])))
             except UnicodeEncodeError:
                 pass
 """
@@ -762,12 +764,12 @@ with open('pores_tcdb_list.txt', 'w') as f:
 """
 
 MEMPROTMD_ROOT_URI = "http://memprotmd.bioch.ox.ac.uk/"
-print(memprotmd_text_search("pores", size_bias=10))
+print(memprotmd_text_search("channel", size_bias=10))
 
+"""
 print(memprotmd_advanced_search(
     # Use the simulation collection
     "refs",
-
     # Look in the chains array of each simulation and see if
     # any element in the array has the field tm_alpha equal to 7
     {
@@ -775,12 +777,10 @@ print(memprotmd_advanced_search(
             "$in": ["outer-membrane-carboxylate-channels-occ", "beta-barrel-membrane-proteins-porins-and-relatives"]
         }
     },
-
     # Projection - choose the fields to return. ID is returned
     # by default.
     {
     },
-
     # Options - sort and then limit
     {
     }
@@ -793,6 +793,7 @@ print(memprotmd_advanced_search("refs",
                            "channels-aquaporins-and-glyceroporins", "channels-formate-nitrite-transporter-fnt-family",
                            "channels-gap-junctions", "channels-amt-mep-rh-proteins"]}},
                                 {}, {}))
+"""
 
 pores_tcdb_list = list_from_dict(get_pores_from_db(get_dict_classes('TCDB'), 'tcdb'))
 alpha_mpstruc_list = list_from_dict(get_pores_from_db(get_dict_classes('mpstruc'), 'mpstruc-alpha'))
@@ -821,3 +822,4 @@ print(count_presence_lists(mpstruc_list, pores_mpm_list))
 print(count_presence_lists(pores_mpm_list, pores_tcdb_list))
 print(count_presences_lists(pores_mpm_list, pores_tcdb_list, mpstruc_list))
 print(len(all_pdbid_pores))
+# download_all_cif(check_db()[0])

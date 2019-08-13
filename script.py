@@ -153,33 +153,14 @@ def compare_tm_structure(t, pdb):
         return False
 
 
-def compare_tm_structure_rupt(t, pdb):  # not finished
-    tm1 = get_first_tm(t)
-    tm2 = get_last_tm(t)
-    st1 = get_first_st(t, pdb)
-    st2 = get_last_st(t, pdb)
-    rup1 = int(re.findall('\d+', t[2][pdb])[1])
-    rup2 = int(re.findall('\d+', t[2][pdb])[2])
-    if tm1 >= st1 and tm2 <= st2:
-        for i in list(map(int, re.findall('\d+', t[1][0]))):
-            if i > rup1 and i < rup2:
-                return False
-            else:
-                return True
-    else:
-        return False
-
-
 def compare_all(list_tmr, list_por):
     result = {}
     pupper = []
-    for i in range(len(list_tmr)):
+    for i in range(len(list_por)):
         pupper.append(list_por[i].upper())
-        if pupper[i] in list_tmr[i][2] and len(re.findall('\d+', list_tmr[i][2][pupper[i]])) < 3:
-            result.update({pupper[i]: compare_tm_structure(list_tmr[i], pupper[i])})
-        # elif len(re.findall('\d+', list_tmr[i][2][pupper[i]])) > 2:
-            # result.update({pupper[i]: compare_tm_structure_rupt(list_tmr[i], pupper[i])})
-
+        for j in range(len(list_tmr)):
+            if pupper[i] in list_tmr[j][2]:  # and len(re.findall('\d+', list_tmr[j][2][pupper[i]])) < 3:
+                result.update({pupper[i]: compare_tm_structure(list_tmr[j], pupper[i])})
     return result
 
 
@@ -218,8 +199,9 @@ def get_pores_from_db(d, db):
                           "channels-other-ion-channels", "channels-fluc-family", "channels-urea-transporters",
                           "channels-aquaporins-and-glyceroporins", "channels-formate-nitrite-transporter-fnt-family",
                           "channels-gap-junctions", "channels-amt-mep-rh-proteins", "protein-1eod", "protein-2vl0",
-                          "protein-3ehz", "protein-6fl9", "outer-membrane-carboxylate-channels-occ",
-                          "beta-barrel-membrane-proteins-porins-and-relatives"]
+                          "protein-3ehz", "protein-6fl9", "outer-membrane-carboxylate-channels-occ", "protein-1yc9",
+                          "beta-barrel-membrane-proteins-porins-and-relatives", "protein-1ek9", "protein-4mt4",
+                          "adventitious-membrane-proteins-beta-sheet-pore-forming-toxins-attack-complexes"]
     elif db == 'mpstruc-alpha':
         list_accession = ["channels-mechanosensitive", "channels-potassium-sodium-proton-ion-selective",
                           "channels-calcium-ion-selective", "channels-transient-receptor-potential-trp",
@@ -228,8 +210,9 @@ def get_pores_from_db(d, db):
                           "channels-gap-junctions", "channels-amt-mep-rh-proteins", "protein-1eod", "protein-2vl0",
                           "protein-3ehz", "protein-6fl9"]
     elif db == 'mpstruc-beta':
-        list_accession = ["outer-membrane-carboxylate-channels-occ",
-                          "beta-barrel-membrane-proteins-porins-and-relatives"]
+        list_accession = ["outer-membrane-carboxylate-channels-occ", "protein-4mt4", "protein-1yc9",
+                          "beta-barrel-membrane-proteins-porins-and-relatives", "protein-1ek9",
+                          "adventitious-membrane-proteins-beta-sheet-pore-forming-toxins-attack-complexes"]
     for key in d:
         if key in list_accession:
             new_d[key] = d[key]
@@ -271,6 +254,7 @@ def get_pores_from_cdb():
                 pores.append(pdbid)
     return pores
 
+
 def check_db():
     structures = []
     list_db = ['mpm', 'TCDB', 'mpstruc']
@@ -280,7 +264,7 @@ def check_db():
             if pdbid not in structures:
                 structures.append(pdbid)
     cdb = get_pores_from_cdb()
-    return no_intersection_list(structures, cdb)
+    return no_intersection_list(structures, cdb), structures
 
 
 with open('pores.txt') as f:  # get the list of pores
@@ -342,33 +326,70 @@ for i in range(len(list_tm)):
 PORES_UP = []
 for i in range(len(list_tm)):
     PORES_UP.append(my_pores[i].upper())
-print(PORES_UP)
+print(len(PORES_UP))
 print(get_first_st(list_tm[0], '3S3W'))
 print(get_last_st(list_tm[0], '3S3W'))
 print(get_first_tm(list_tm[0]))
 print(get_last_tm(list_tm[0]))
 print(compare_tm_structure(list_tm[0], '3S3W'))
+
+no_complet_TM_cdb = []
+no_complet_TM_family = []
+
 my_di_str = compare_all(list_tm, PORES_UP)
 print(my_di_str)
-print(len(my_di_str))
-c = 0
+# print('nepreruseny chain:' + str(len(my_di_str)))
+tm_true_cdb = []
 for key in my_di_str:
     if my_di_str[key]:
-        c += 1
-print(c)
+        tm_true_cdb.append(key)
+    else:
+        no_complet_TM_cdb.append(key)
+print('komplet tm:' + str(len(tm_true_cdb)))
 
 pdb_keys = []
-for key in my_di_str:
+for key in tm_true_cdb:
     for k in list_pores:
         if key in k[2]:
             for pdbid in k[2]:
                 if pdbid not in pdb_keys:
                     pdb_keys.append(pdbid)
 print(pdb_keys)
-print(len(pdb_keys))
-print(len(pdb_keys)-c)
-
-print(len(check_db()))
+print('vsechny pdbid od komplet tm:' + str(len(pdb_keys)))
+print('pouze spriznene pdbid od komplet tm:' + str(len(no_intersection_list(pdb_keys, tm_true_cdb))))
+print('')
+pdbid_to_mole = check_db()[1]
+print(len(check_db()[0]), len(pdbid_to_mole))
 print(len(get_pores_from_cdb()))
-
+"""
+with open('pdbid_to_mole.txt', 'w') as f:
+    for item in check_db()[0]:
+        f.write("%s\n" % item)
+"""
+pores_tocdb_UPPER = []
+for i in range(len(pdbid_to_mole)):
+    pores_tocdb_UPPER.append(pdbid_to_mole[i].upper())
+print(no_intersection_list(pdb_keys, pores_tocdb_UPPER))
+pdbid_to_mole_fromTM = no_intersection_list(pdb_keys, pores_tocdb_UPPER)
+"""
+with open('pdbid_to_mole_fromTM.txt', 'w') as f:
+    for item in no_intersection_list(pdb_keys, pores_tocdb_UPPER):
+        f.write("%s\n" % item.lower())
+"""
+family_st = no_intersection_list(pdb_keys, tm_true_cdb)
+my_di_str2 = compare_all(list_tm, family_st)
+print(my_di_str2)
+# print('pouze family pdbid od komplet tm s neprerusenym chainem:' + str(len(my_di_str2)))
+tm_to_mole = []
+for key in my_di_str2:
+    if my_di_str2[key]:
+        tm_to_mole.append(key)
+    else:
+        no_complet_TM_family.append(key)
+print('pouze family pdbid s komplet tm:' + str(len(tm_to_mole)))
+print('pouze family pdbid s komplet tm co nejsou v pores db:' + str(len(no_intersection_list(tm_to_mole, pores_tocdb_UPPER))))
+print(len(no_complet_TM_cdb))
+print(len(no_complet_TM_family))
+print(no_complet_TM_cdb)
+print(no_complet_TM_family)
 

@@ -15,6 +15,8 @@ import statistics
 import json
 import re
 
+# UniProt (TM) selection
+
 
 def load_json(file):
     """"
@@ -25,11 +27,31 @@ def load_json(file):
     return py_json
 
 
+def find_best_uniprot(l, d, pdbid):
+    p = 0
+    if len(l) > 1:
+        max_length = 0
+        for i in range(len(l)):
+            length = d[pdbid]['UniProt'][l[i]]['mappings'][0]['unp_end'] - d[pdbid]['UniProt'][l[i]]['mappings'][0]['unp_start']
+            j = 1
+            while d[pdbid]['UniProt'][l[i]]['mappings'][j]['chain_id'] == d[pdbid]['UniProt'][l[i]]['mappings'][0]['chain_id']:
+                length += d[pdbid]['UniProt'][l[i]]['mappings'][j]['unp_end'] - d[pdbid]['UniProt'][l[i]]['mappings'][j]['unp_start']
+                j += 1
+            if length > max_length:
+                max_length = length
+                p = i
+    return p
+
+
 def find_uniprot_from_sifts(pdbid):
     urllib.request.urlretrieve("http://www.ebi.ac.uk/pdbe/api/mappings/uniprot/" + pdbid,  pdbid + "up.json")
     d = load_json(pdbid + "up.json")
-    id = list(d[pdbid]['UniProt'].keys())[0]
-    return id
+    id = []
+    for key in d[pdbid]['UniProt']:
+        id.append(key)
+    i = find_best_uniprot(id, d, pdbid)
+    # os.remove(pdbid + "up.json")
+    return id[i]
 
 
 def get_all_uniprotid(l):
@@ -38,7 +60,8 @@ def get_all_uniprotid(l):
         try:
             uniprotid.append(find_uniprot_from_sifts(pdbid))
         except:
-            print(pdbid)
+            # print('No UniProt: ' + pdbid)
+            pass
     return uniprotid
 
 
@@ -47,7 +70,8 @@ def download_uniprot_xml(uniprotid):
     downloads the Uniprot xml file from uniprot id
     the uniprot id as the parameter
     """
-    urllib.request.urlretrieve("https://www.uniprot.org/uniprot/" + uniprotid + ".xml",
+    if not os.path.isfile(uniprotid + ".xml"):
+        urllib.request.urlretrieve("https://www.uniprot.org/uniprot/" + uniprotid + ".xml",
                                uniprotid + ".xml")
 
 
@@ -55,7 +79,7 @@ def download_xml(l):
     """"
     downloads all xml files from a list
     (in this case a list of pores we want to get)
-    list contains the pdbids of the pores
+    list contains the uniprot of the pores
     """
     for name in l:
         download_uniprot_xml(name)
@@ -154,14 +178,158 @@ def compare_tm_structure(t, pdb):
 
 
 def compare_all(list_tmr, list_por):
+    """
+
+    :param list_tmr: list of tuples from xml files
+    :param list_por: list of pdbids
+    :return: a dictionary pdbid:Binary, says if the structure has all the TM region
+    """
     result = {}
     pupper = []
     for i in range(len(list_por)):
         pupper.append(list_por[i].upper())
         for j in range(len(list_tmr)):
-            if pupper[i] in list_tmr[j][2]:  # and len(re.findall('\d+', list_tmr[j][2][pupper[i]])) < 3:
+            if pupper[i] in list_tmr[j][2] and list_tmr[j][1] != []:  # and len(re.findall('\d+', list_tmr[j][2][pupper[i]])) < 3:
                 result.update({pupper[i]: compare_tm_structure(list_tmr[j], pupper[i])})
+            elif pupper[i] in list_tmr[j][2] and list_tmr[j][1] == []:
+                result.update({pupper[i]: 'No TM'})
     return result
+
+
+def compare_family(d):
+    list_cdb = get_pores_from_cdb()
+    list_cdb_up = []
+    for i in range(len(list_cdb)):
+        list_cdb_up.append(list_cdb[i].upper())
+    for id in list_cdb_up:
+        if id in d:
+            return True
+    return False
+
+
+def compare_family_all(list_tmr, list_por):
+    result = {}
+    pupper = []
+    for i in range(len(list_por)):
+        pupper.append(list_por[i].upper())
+        for j in range(len(list_tmr)):
+            if list_por[i] in list_tmr[j][2]:
+                if pupper[i] not in result:
+                    result.update({pupper[i]: compare_family(list_tmr[j][2])})
+                    # print(pupper[i])
+    return result
+
+
+def search_uniprot_line(list_tmr, pdbid):
+    for t in list_tmr:
+        if t[0] == find_uniprot_from_sifts(pdbid.lower()):
+            return t
+
+
+def filter_tm(t, pdbid):
+    try:
+        tm1 = get_first_tm(t)
+        tm2 = get_last_tm(t)
+        length = tm2 - tm1
+        st1 = get_first_st(t, pdbid)
+        st2 = get_last_st(t, pdbid)
+        diff = 0
+        if (st1 - tm1) > 0:
+            diff += (st1 - tm1)
+        if (tm2 - st2) > 0:
+            diff += (tm2 - st2)
+        if diff < (0.1*length + 5):
+            return True
+    except:
+        print(str(t) + pdbid)
+    return False
+
+
+def list_upper(l):
+    new_l = []
+    for i in range(len(l)):
+        new_l.append(l[i].upper())
+    return new_l
+
+
+def list_lower(l):
+    new_l = []
+    for i in range(len(l)):
+        new_l.append(l[i].lower())
+    return new_l
+
+
+def compare_family_tm(t, pdbid):
+    try:
+        length = int(re.findall('\d+', t[2][pdbid])[-1]) - int(re.findall('\d+', t[2][pdbid])[0])
+        cdb_list = list_upper(get_pores_from_cdb())
+        this_cdb = {}
+        for key in t[2]:
+            if key in cdb_list:
+                this_cdb[key] = t[2][key]
+        len_cdb = find_min_position(this_cdb)
+        if length >= len_cdb:
+            return True
+    except KeyError:
+        print(str(t) + pdbid)
+    return False
+
+
+def find_min_position(d):
+    diff_min = 0
+    for key in d:
+        st1 = int(re.findall('\d+', d[key])[0])
+        st2 = int(re.findall('\d+', d[key])[-1])
+        if (st2 - st1) < diff_min:
+            diff_min = (st2 - st1)
+        elif diff_min == 0:
+            diff_min = (st2 - st1)
+    return diff_min
+
+
+def check_tm(l):
+    """
+
+    :param l: list of pdbids to check
+    :return: list of pdbids to send to mole
+    """
+    download_xml(get_all_uniprotid(l))
+    pdbid_to_mole = []; pdbid_to_mole_filter = []; pdbid_to_mole_filter_famtm = []
+    pdbid_no_filter = []; pdbid_no_tm = []; pdbid_no_family = []; pdbid_no_uni = []
+    list_data = load_all(get_all_uniprotid(l))
+    print('data loaded')
+    list_upper = []
+    for i in range(len(l)):
+        list_upper.append(l[i].upper())
+    tm_comparison = compare_all(list_data, list_upper)
+    print(tm_comparison)
+    family_comparison = compare_family_all(list_data, list_upper)
+    print(family_comparison)
+    for pdbid in list_upper:
+        print(pdbid)
+        if pdbid not in tm_comparison:
+            pdbid_no_uni.append(pdbid)
+        elif tm_comparison[pdbid] == 'No TM':
+            pdbid_no_tm.append(pdbid)
+        else:
+            if family_comparison[pdbid] and tm_comparison[pdbid]:
+                pdbid_to_mole.append(pdbid)
+            elif family_comparison[pdbid] and not tm_comparison[pdbid]:
+                print(pdbid)
+                if filter_tm(search_uniprot_line(list_data, pdbid), pdbid):
+                    pdbid_to_mole_filter.append(pdbid)
+                else:
+                    if compare_family_tm(search_uniprot_line(list_data, pdbid), pdbid):
+                        pdbid_to_mole_filter_famtm.append(pdbid)
+                    else:
+                        pdbid_no_filter.append(pdbid)
+            else:
+                pdbid_no_family.append(pdbid)
+    return pdbid_to_mole, pdbid_to_mole_filter, pdbid_to_mole_filter_famtm, pdbid_no_filter, pdbid_no_family, \
+           pdbid_no_tm, pdbid_no_uni
+
+
+# DB selection
 
 
 def get_all_memprotmd_references(database):
@@ -246,7 +414,8 @@ def list_from_dict(d):
 
 def get_pores_from_cdb():
     pores = []
-    urllib.request.urlretrieve("https://webchem.ncbr.muni.cz/API/ChannelsDB/Content", 'content.json')
+    if not os.path.isfile('content.json'):
+        urllib.request.urlretrieve("https://webchem.ncbr.muni.cz/API/ChannelsDB/Content", 'content.json')
     with open('content.json', 'r') as f:
         content = json.load(f)
         for pdbid in content:
@@ -348,7 +517,7 @@ for key in my_di_str:
 print('komplet tm:' + str(len(tm_true_cdb)))
 
 pdb_keys = []
-for key in tm_true_cdb:
+for key in my_di_str:
     for k in list_pores:
         if key in k[2]:
             for pdbid in k[2]:
@@ -392,4 +561,36 @@ print(len(no_complet_TM_cdb))
 print(len(no_complet_TM_family))
 print(no_complet_TM_cdb)
 print(no_complet_TM_family)
+print(no_intersection_list(no_complet_TM_cdb, pores_tocdb_UPPER))
+print(len(no_intersection_list(no_complet_TM_family, pores_tocdb_UPPER)))
+
+"""
+ana_no_complet_TM_family = []
+for pdbid in no_intersection_list(no_complet_TM_family, pores_tocdb_UPPER):
+    for i in list_pores:
+        if pdbid in i[2]:
+            if i not in ana_no_complet_TM_family:
+                ana_no_complet_TM_family.append(i)
+for i in range(len(ana_no_complet_TM_family)):
+    print(ana_no_complet_TM_family[i])
+print(len(ana_no_complet_TM_family))
+"""
+
+print(len(tm_to_mole))
+with open('pores.txt') as f:  # get the list of pores
+    my_pores_new = f.readlines()
+    for i in range(len(my_pores_new)):
+        my_pores_new[i] = my_pores_new[i].rstrip('\n')
+tm_comp = check_tm(list_lower(tm_to_mole))
+print(len(tm_to_mole))
+print('MOLE - TM + Family: ' + str(len(tm_comp[0])))
+print('MOLE - Filter + Family: ' + str(len(tm_comp[1])))
+print('MOLE - FamilyTM: ' + str(len(tm_comp[2])))
+print('No Filter or FamilyTM: ' + str(len(tm_comp[3])))
+print('No Family' + str(len(tm_comp[4])))
+print('No TM: : ' + str(len(tm_comp[5])))
+print('No UniProt: ' + str(len(tm_comp[6])))
+print(tm_comp)
+print(no_intersection_list(tm_comp[0], list_upper(pdbid_to_mole)))
+
 

@@ -1,40 +1,38 @@
+#! /usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Jul 19 2019
+@author: jruzicka
+"""
+
+# Librairies
 import os
 import shutil
+import analysis as an
+import script as sc
 
 
-def mole_basic(start, end):
-    with open('pores.txt') as f:  # get the list of pores
-        my_pores_all = f.readlines()
-        for i in range(len(my_pores_all)):
-            my_pores_all[i] = my_pores_all[i].rstrip('\n')
-    print(my_pores_all)
-
-    pores_trunc = my_pores_all[start:end]
+def mole_basic(l, start, end):
+    pores_trunc = l[start:end]
 
     for pdbid in pores_trunc:
         try:
-            os.mkdir("C:\Computations\Calc\\" + pdbid)
+            os.mkdir("D:\calculation\jiri\mole_pores\\" + pdbid)
 
-            os.popen("C:\Computations\Pores\Pores.exe ""C:\Computations\Calc\\" + pdbid + ".json")
+            os.popen("D:\\calculation\\jiri\\Pores\\Pores.exe ""D:\calculation\jiri\mole_pores\\" + pdbid + ".json")
 
-        except FileExistsError:
+        except :
             print(pdbid)
 
 
-def mole_tm(start, end):
-    with open('pores.txt') as f:  # get the list of pores
-        my_pores_all = f.readlines()
-        for i in range(len(my_pores_all)):
-            my_pores_all[i] = my_pores_all[i].rstrip('\n')
-    print(my_pores_all)
-
-    pores_trunc = my_pores_all[start:end]
+def mole_tm(l, start, end):
+    pores_trunc = l[start:end]
 
     for pdbid in pores_trunc:
         try:
-            os.mkdir("C:\Computations\Calc\\" + pdbid + "_TM")
+            os.mkdir("D:\calculation\jiri\mole_pores\\" + pdbid + "_TM")
 
-            os.popen("C:\Computations\Pores\Pores.exe ""C:\Computations\Calc\\" + pdbid + "_TM.json")
+            os.popen("D:\\calculation\\jiri\\Pores\\Pores.exe ""D:\calculation\jiri\mole_pores\\" + pdbid + "_TM.json")
 
         except FileExistsError:
             print(pdbid + "_TM")
@@ -44,11 +42,11 @@ def get_exist(path):
     return os.path.exists(path + "\\json")
 
 
-def get_list_exist(l):
+def get_list_exist(path, l):
     does_not = 0
     pdb_list = []
     for pdbid in l:
-        if not get_exist("C:\Computations\Calc\\" + pdbid):
+        if not get_exist(path + pdbid):
             does_not += 1
             pdb_list.append(pdbid)
     return does_not, pdb_list
@@ -58,25 +56,29 @@ def get_list_exist_tm(l):
     does_not = 0
     pdb_list = []
     for pdbid in l:
-        if not get_exist("C:\Computations\Calc\\" + pdbid + "_TM"):
+        if not get_exist("D:\calculation\jiri\mole_pores\\" + pdbid + "_TM"):
             does_not += 1
             pdb_list.append(pdbid)
     return does_not, pdb_list
 
 
-with open('pores.txt') as f:  # get the list of pores
-    my_pores_all = f.readlines()
-    for i in range(len(my_pores_all)):
-        my_pores_all[i] = my_pores_all[i].rstrip('\n')
-print(my_pores_all)
-print(get_exist("C:\Computations\Calc\\3s3w"))
-print(get_list_exist(my_pores_all))
-print(get_list_exist_tm(my_pores_all))
-none_basic = get_list_exist(my_pores_all)[1]
-none_tm = get_list_exist_tm(my_pores_all)[1]
-i = 0
-for p in none_basic:
-    if p in none_tm:
-        print(p)
-
-
+if __name__ == "__main__":
+    with open('pdbid_to_mole_fromTM.txt') as f:  # get the list of pores
+        my_pores_to_moleTM = f.readlines()
+        for i in range(len(my_pores_to_moleTM)):
+            my_pores_to_moleTM[i] = my_pores_to_moleTM[i].rstrip('\n')
+    print(my_pores_to_moleTM)
+    # an.generate_mole_jsons("D:\calculation\jiri\mole_pores\\", False, my_pores_to_mole)
+    # an.download_all_cif(my_pores_to_mole)
+    mole_basic(my_pores_to_moleTM, 0, 38)
+    with open('pdbid_to_mole.txt') as f:  # get the list of pores
+        my_pores_to_mole = f.readlines()
+        for i in range(len(my_pores_to_mole)):
+            my_pores_to_mole[i] = my_pores_to_mole[i].rstrip('\n')
+    print(my_pores_to_mole)
+    # an.generate_mole_jsons("D:\calculation\jiri\mole_pores\\", False, my_pores_to_mole)
+    # an.download_all_cif(my_pores_to_mole)
+    mole_basic(my_pores_to_mole, 0, 976)
+    print(len(my_pores_to_mole+my_pores_to_moleTM))
+    print(get_list_exist(my_pores_to_mole+my_pores_to_moleTM))
+    redo = get_list_exist(my_pores_to_mole+my_pores_to_moleTM)[1]

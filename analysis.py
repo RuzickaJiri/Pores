@@ -65,13 +65,18 @@ def download_jsons(l):
         download_file(name)
 
 
-def load_json(file):
+def load_json(pdbid):
     """"
     returns a dictionary issued from the json file specified as a parameter
     """
-    with open(file) as f:
-        py_json = json.load(f)
-    return py_json
+    if os.path.exists(pdbid + ".json"):
+        with open(pdbid + ".json") as f:
+            py_json = json.load(f)
+        return py_json
+    else:
+        with open("C:\Computations\Calc\FromMole\\" + pdbid + "\\json\data.json") as f:
+            py_json = json.load(f)
+        return py_json
 
 
 def get_list_json_ending(l):
@@ -86,7 +91,7 @@ def get_list_json_ending(l):
 
 def load_all(l):
     """"
-    loads all jsons from a list and returns a list of dictionaries (previosly json files)
+    loads all jsons from a list and returns a list of dictionaries (previously json files)
     l is a list that contains the names of json files
     """
     list_json = []
@@ -167,9 +172,10 @@ def generate_mole_jsons(template, l):
         change_template(template, pdbid)
 
 
-def load_all_mole(tm, l):
+def load_all_mole(path, tm, l):
     """
     loads all json files from the list in a new list
+    :param path: string, path to the files to upload
     :param tm: binary - TM-only parameter
     :param l: list of pdbids
     :return: list of json data
@@ -177,15 +183,15 @@ def load_all_mole(tm, l):
     my_list = []
     if tm:
         for pdbid in l:
-            if os.path.exists("C:/Computations/Calc/" + pdbid + "_TM/json"):
-                my_path = "C:/Computations/Calc/" + pdbid + "_TM/json/"
+            if os.path.exists(path + pdbid + "_TM/json"):
+                my_path = path + pdbid + "_TM/json/"
                 with open(my_path + 'data.json') as f:
                     py_json = json.load(f)
                 my_list.append(py_json)
     else:
         for pdbid in l:
-            if os.path.exists("C:/Computations/Calc/" + pdbid + "\\json"):
-                my_path = "C:/Computations/Calc/" + pdbid + "/json/"
+            if os.path.exists(path + pdbid + "\\json"):
+                my_path = path + pdbid + "/json/"
                 with open(my_path + 'data.json') as f:
                     py_json = json.load(f)
                 my_list.append(py_json)
@@ -194,15 +200,37 @@ def load_all_mole(tm, l):
 # Properties analysis
 
 
+def analyze_property(l, prop):
+    properties = []
+    for pdbid in l:
+        temp = get_property(load_json(pdbid), prop)
+        if temp is not None:
+            properties.append(temp)
+    return properties
+
+
 def get_property(d, prop):
     """"
     returns the specified property of the pore
     parameter - dictionary from json file
     """
-    if prop == 'length':
-        return d['channels']['transmembranePores'][0]['layers']['layersInfo'][-1]['layerGeometry']['endDistance']
-    else:
-        return d['channels']['transmembranePores'][0]['properties'][prop]
+    try:
+        if prop == 'length':
+            if 'channels' in d:
+                return d['channels']['transmembranePores'][0]['layers']['layersInfo'][-1]['layerGeometry']['endDistance']
+            else:
+                return d['Channels']['Paths'][0]['Layers']['LayersInfo'][-1]['LayerGeometry']['EndDistance']
+        else:
+            if 'channels' in d:
+                return d['channels']['transmembranePores'][0]['properties'][prop]
+            else:
+                propy = prop[0].upper() + prop[1:]
+                return d['Channels']['Paths'][0]['Properties'][propy]
+    except IndexError:
+        try:
+            print(d['Config']['PdbId'])
+        except KeyError:
+            print(d)
 
 
 def get_stat_property(l, prop):
@@ -221,11 +249,9 @@ def histogram_property(l, prop):
     returns the histogram of the given property of all pores in the list
     parameter - list of dictionaries from json files, the string property
     """
-    properties = []
-    for d in l:
-        properties.append(get_property(d, prop))
-    num_bins = 50
-    n, bins, patches = plt.hist(properties, num_bins, facecolor='black', alpha=0.5)
+    num_bins = 75
+    arr = analyze_property(l, prop)
+    n, bins, patches = plt.hist(arr, num_bins, facecolor='black', alpha=0.5)
     plt.xlabel(prop)
     plt.ylabel('Quantity')
     plt.title('Histogram of ' + prop)
@@ -253,6 +279,22 @@ def hist_random_mole(l):
 # Residue analysis
 
 
+def analyze_residues(l, place):
+    all_residues = {}
+    residues = []
+    for pdbid in l:
+        residues.append(get_residues(load_json(pdbid), place))
+    for d in residues:
+        for aa in d:
+            aa = aa[:3]
+            if aa not in all_residues:
+                all_residues[aa] = d[aa]
+            else:
+                all_residues[aa] += d[aa]
+    all_residues = sort_residues(all_residues)
+    return all_residues
+
+
 def get_residues(d, place):
     """"
      returns the dictionary containing the residues as keys and its quantity as values
@@ -261,16 +303,19 @@ def get_residues(d, place):
     residues = {}
     residues_json = []
     if place == 'general':
-        residues_json = d['channels']['transmembranePores'][0]['layers']['residueFlow']  # list
+        if 'channels' in d:
+            residues_json = d['channels']['transmembranePores'][0]['layers']['residueFlow']  # list
+        else:
+            residues_json = d['Channels']['Paths'][0]['Layers']['ResidueFlow']
     elif place == 'bottleneck':
-        for i in range(len(d['channels']['transmembranePores'][0]['layers']['layersInfo'])):
-            if d['channels']['transmembranePores'][0]['layers']['layersInfo'][i]['layerGeometry']['bottleneck']:
-                residues_json = d['channels']['transmembranePores'][0]['layers']['layersInfo'][i]['residues']
-    elif place == 'mole':
-        try:
-            residues_json = d['Channels']['Paths'][0]['Layers']['ResidueFlow']  # list
-        except IndexError:
-            pass
+        if 'channels' in d:
+            for i in range(len(d['channels']['transmembranePores'][0]['layers']['layersInfo'])):
+                if d['channels']['transmembranePores'][0]['layers']['layersInfo'][i]['layerGeometry']['bottleneck']:
+                    residues_json = d['channels']['transmembranePores'][0]['layers']['layersInfo'][i]['residues']
+        else:
+            for i in range(len(d['Channels']['Paths'][0]['Layers']['LayersInfo'])):
+                if 'Bottleneck' in d['Channels']['Paths'][0]['Layers']['LayersInfo'][i]['LayerGeometry']:
+                    residues_json = d['Channels']['Paths'][0]['Layers']['LayersInfo'][i]['Residues']
 
     backbones = []
     backbones_d = {}
@@ -339,7 +384,8 @@ def get_stat_res_number(l, place):
     returns the residue statistics (total_residues, mean_by_residue, mean_by_pore) of all pores in the list
     parameter - list of dictionaries from json files
     """
-    d = get_stat_residues(l, place)
+    # d = get_stat_residues(l, place)
+    d = analyze_residues(l, place)
     res_nb = 0
     for aa in d:
         res_nb += d[aa]
@@ -599,7 +645,7 @@ if __name__ == "__main__":
             my_pores_all[i] = my_pores_all[i].rstrip('\n')
     print(len(my_pores_all))
 
-    my_list = load_all(get_list_json_ending(my_pores))  # load a list containing all jsons in form of python dicts
+    my_list = load_all(my_pores)  # load a list containing all jsons in form of python dicts
     print(len(my_list))
     print(my_list[1])
     print(get_stat_property(my_list, 'charge'))
@@ -609,8 +655,8 @@ if __name__ == "__main__":
     print(get_stat_property(my_list, 'mutability'))
     print(get_stat_property(my_list, 'length'))
     print('')
-    # histogram_property(my_list, 'charge')
-    # histogram_property(my_list, 'length')
+    # histogram_property(my_pores, 'charge')
+    # histogram_property(my_pores, 'length')
 
     # Residues analysis
     """
@@ -800,3 +846,4 @@ if __name__ == "__main__":
     print(count_presences_lists(pores_mpm_list, pores_tcdb_list, mpstruc_list))
     print(len(all_pdbid_pores))
     # download_all_cif(check_db()[0])
+    print(analyze_property(my_pores, 'charge'))

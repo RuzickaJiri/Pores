@@ -15,6 +15,7 @@ import statistics
 import json
 import re
 import analysis as an
+import selection as se
 
 # Downloading and loading data
 
@@ -34,13 +35,16 @@ def get_all_uniprotid(l):
     :param l: list of pdb ids
     :return: list of uniprot ids
     """
-    uniprotid = []
+    uniprotid = {}
+    i = 0
     for pdbid in l:
         try:
-            uniprotid.append(find_uniprot_from_sifts(pdbid))
-        except:
+            uniprotid[pdbid] = find_uniprot_from_sifts(pdbid)
+        except urllib.error.HTTPError:
+            i += 1
             # print('No UniProt: ' + pdbid)
-            pass
+            # pass
+    print(str(i) + " PDBids have no UniProt mapping.")
     return uniprotid
 
 
@@ -155,14 +159,15 @@ def find_uniprot_from_sifts(pdbid):
     :param pdbid: pdbid
     :return: uniprot id
     """
-    urllib.request.urlretrieve("http://www.ebi.ac.uk/pdbe/api/mappings/uniprot/" + pdbid,  pdbid + "up.json")
+    if not os.path.isfile(pdbid + 'up.json'):
+        urllib.request.urlretrieve("http://www.ebi.ac.uk/pdbe/api/mappings/uniprot/" + pdbid,  pdbid + "up.json")
     d = load_json(pdbid + "up.json")
     id = []
     for key in d[pdbid]['UniProt']:
         id.append(key)
-    i = find_best_uniprot(id, d, pdbid)
+    # i = find_best_uniprot(id, d, pdbid)
     # os.remove(pdbid + "up.json")
-    return id[i]
+    return id
 
 # UniProt (TM) selection
 
@@ -230,14 +235,14 @@ def compare_all(list_tmr, list_por):
     :return: dictionary pdbid:Binary, says if the structure has all the TM region
     """
     result = {}
-    pupper = []
-    for i in range(len(list_por)):
-        pupper.append(list_por[i].upper())
+    pupper = list_upper(list_por)
+    for i in range(len(pupper)):
         for j in range(len(list_tmr)):
             if pupper[i] in list_tmr[j][2] and list_tmr[j][1] != []:  # and len(re.findall('\d+', list_tmr[j][2][pupper[i]])) < 3:
-                result.update({pupper[i]: compare_tm_structure(list_tmr[j], pupper[i])})
+                result[pupper[i]] = compare_tm_structure(list_tmr[j], pupper[i])
             elif pupper[i] in list_tmr[j][2] and list_tmr[j][1] == []:
-                result.update({pupper[i]: 'No TM'})
+                if pupper[i] not in result:
+                    result[pupper[i]] = 'No TM'
     return result
 
 
@@ -283,9 +288,12 @@ def search_uniprot_line(list_tmr, pdbid):
     :param pdbid: pdb id
     :return: tuple
     """
+    mapp = find_uniprot_from_sifts(pdbid.lower())
+    l = []
     for t in list_tmr:
-        if t[0] == find_uniprot_from_sifts(pdbid.lower()):
-            return t
+        if t[0] in mapp:
+            l.append(t)
+    return l
 
 
 def filter_tm(t, pdbid):
@@ -358,19 +366,19 @@ def check_tm(l):
     :param l: list of pdbids to check
     :return: list of pdbids to send to mole
     """
-    download_xml(get_all_uniprotid(l))
+    unpr_list = se.get_unpr_list(get_all_uniprotid(l))
+
+    download_xml(unpr_list)
     pdbid_to_mole = []; pdbid_to_mole_filter = []; pdbid_to_mole_filter_famtm = []
     pdbid_no_filter = []; pdbid_no_tm = []; pdbid_no_family = []; pdbid_no_uni = []
-    list_data = load_all(get_all_uniprotid(l))
-    print('data loaded')
-    list_upper = []
-    for i in range(len(l)):
-        list_upper.append(l[i].upper())
-    tm_comparison = compare_all(list_data, list_upper)
+    list_data = load_all(unpr_list)
+    print('Data loaded')
+    l_upper = list_upper(l)
+    tm_comparison = compare_all(list_data, l_upper)
     print(tm_comparison)
-    family_comparison = compare_family_all(list_data, list_upper)
+    family_comparison = compare_family_all(list_data, l_upper)
     print(family_comparison)
-    for pdbid in list_upper:
+    for pdbid in l_upper:
         if pdbid not in tm_comparison:
             pdbid_no_uni.append(pdbid)
         elif tm_comparison[pdbid] == 'No TM':
@@ -380,13 +388,18 @@ def check_tm(l):
                 pdbid_to_mole.append(pdbid)
             elif family_comparison[pdbid] and not tm_comparison[pdbid]:
                 print(pdbid)
-                if filter_tm(search_uniprot_line(list_data, pdbid), pdbid):
-                    pdbid_to_mole_filter.append(pdbid)
-                else:
-                    if compare_family_tm(search_uniprot_line(list_data, pdbid), pdbid):
-                        pdbid_to_mole_filter_famtm.append(pdbid)
+                lines = search_uniprot_line(list_data, pdbid)
+                for line in lines:
+                    if filter_tm(line, pdbid):
+                        pdbid_to_mole_filter.append(pdbid)  # possible plurality
+                        break
                     else:
-                        pdbid_no_filter.append(pdbid)
+                        if compare_family_tm(line, pdbid):
+                            pdbid_to_mole_filter_famtm.append(pdbid)  # possible plurality
+                            break
+                        else:
+                            if pdbid not in pdbid_no_filter:
+                                pdbid_no_filter.append(pdbid)  # possible plurality
             else:
                 pdbid_no_family.append(pdbid)
     return pdbid_to_mole, pdbid_to_mole_filter, pdbid_to_mole_filter_famtm, pdbid_no_filter, pdbid_no_family, \
@@ -527,7 +540,7 @@ if __name__ == "__main__":
             my_pores[i] = my_pores[i].rstrip('\n')
     print(len(my_pores))
     # download_xml(my_pores) # works
-    # my_uni  = get_all_uniprotid(my_pores)
+    # my_uni  = [*get_all_uniprotid(my_pores)]
 
     with open('uniprotid.txt') as f:  # get the list of proteins
         my_uni = f.readlines()

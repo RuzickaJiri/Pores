@@ -1,0 +1,43 @@
+{
+  "pores": {
+    "database": {
+        "mpm": {
+            "classes": ["aquaporins", "ion_channels"]
+        }, 
+        "mpstruc": {
+            "all": {
+                "classes": ["channels-mechanosensitive", "channels-potassium-sodium-proton-ion-selective", 
+                            "channels-calcium-ion-selective", "channels-transient-receptor-potential-trp",
+                            "channels-other-ion-channels", "channels-fluc-family", "channels-urea-transporters",
+                            "channels-aquaporins-and-glyceroporins", "channels-formate-nitrite-transporter-fnt-family",
+                            "channels-gap-junctions", "channels-amt-mep-rh-proteins", "cora-superfamily-ion-transporters", 
+                            "protein-1oed", "protein-2vl0","protein-3ehz", "protein-6fl9", "protein-5cfb", "protein-2m6b", 
+                            "protein-3jad", "protein-3rhw", "protein-5kxi", "protein-4cof", "protein-4pir",
+                            "outer-membrane-carboxylate-channels-occ", "beta-barrel-membrane-proteins-porins-and-relatives", 
+                            "outer-membrane-autotransporters", "beta-barrel-membrane-proteins-mitochondrial-outer-membrane", 
+                            "adventitious-membrane-proteins-beta-sheet-pore-forming-toxins-attack-complexes", "protein-4mt4", 
+                            "protein-1yc9", "protein-1ek9", "protein-1wp1", "protein-5azo", "protein-5azs", "protein-3pik", 
+                            "protein-4uv3", "protein-6gie"]
+            }, 
+            "alpha": {
+                "classes": ["channels-mechanosensitive", "channels-potassium-sodium-proton-ion-selective",
+                            "channels-calcium-ion-selective", "channels-transient-receptor-potential-trp",
+                            "channels-other-ion-channels", "channels-fluc-family", "channels-urea-transporters",
+                            "channels-aquaporins-and-glyceroporins", "channels-formate-nitrite-transporter-fnt-family",
+                            "channels-gap-junctions", "channels-amt-mep-rh-proteins", "cora-superfamily-ion-transporters", "protein-1oed", "protein-2vl0",
+                            "protein-3ehz", "protein-6fl9", "protein-5cfb", "protein-2m6b", "protein-3jad", "protein-3rhw", "protein-5kxi", "protein-4cof", 
+                            "protein-4pir"]
+            },
+            "beta": {
+                 "classes": ["outer-membrane-carboxylate-channels-occ", "beta-barrel-membrane-proteins-porins-and-relatives", "outer-membrane-autotransporters", 
+                            "beta-barrel-membrane-proteins-mitochondrial-outer-membrane", 
+                            "adventitious-membrane-proteins-beta-sheet-pore-forming-toxins-attack-complexes", "protein-4mt4", 
+                            "protein-1yc9", "protein-1ek9", "protein-1wp1", "protein-5azo", "protein-5azs", "protein-3pik", "protein-6gie"]
+            }
+        },
+        "TCDB": {
+            "classes": ["1", "2.A.6.2", "8.A.16", "8.A.18", "8.A.22", "8.A.50", "8.A.82", "8.B"]
+        }
+    }
+  }
+}

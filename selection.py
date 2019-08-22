@@ -68,7 +68,11 @@ def find_pores(l):
                                 break
                             else:
                                 print(pdbid + ': Filter not passed.')
-        print('New ' + str(len(new_pores)) + ' pores')
+        print('New ' + str(len(new_pores)) + ' pores, of which ' +
+              str(len(new_pores) - an.count_presence_lists(sc.list_lower(new_pores), pores_cdb)) +
+              ' are not in ChannelsDB and ' +
+              str(len(new_pores) - an.count_presence_lists(sc.list_lower(new_pores), pores_db[1])) +
+              ' are not in any database.')
         return new_pores
     else:
         return 'No new pores'

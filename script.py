@@ -328,18 +328,24 @@ def compare_family_tm(t, pdbid):
     :param pdbid: pdb id
     :return: binary
     """
+    res = False
+    cdb_list = list_upper(get_pores_from_cdb())
+    this_cdb = {}
+    for key in t[2]:
+        if key in cdb_list:
+            this_cdb[key] = t[2][key]
     try:
         length = int(re.findall('\d+', t[2][pdbid])[-1]) - int(re.findall('\d+', t[2][pdbid])[0])
-        cdb_list = list_upper(get_pores_from_cdb())
-        this_cdb = {}
-        for key in t[2]:
-            if key in cdb_list:
-                this_cdb[key] = t[2][key]
         len_cdb = find_min_position(this_cdb)
         if length >= len_cdb:
-            return True
+            res = True
     except KeyError:
         print(str(t) + pdbid)
+    if res:
+        this_str = len(find_chain(t[2][pdbid]))
+        str_cdb = len(find_min_chain(this_cdb))
+        if this_str >= str_cdb:
+            return True
     return False
 
 
@@ -358,6 +364,34 @@ def find_min_position(d):
         elif diff_min == 0:
             diff_min = (st2 - st1)
     return diff_min
+
+
+def find_chain(s):
+    """
+    finds the letters (protein chain) in the string
+    :param s: string
+    :return: integer, chains of the protein
+    """
+    if s.find(',') == -1:
+        return s[:s.find('=')]
+    else:
+        return find_chain(s[:s.find(',')]) + '/' + find_chain(s[(s.find(',')+2):])
+
+
+def find_min_chain(d):
+    """
+    finds the smallest chain of a structure
+    :param d: dictionary
+    :return: string, chain sequence
+    """
+    str_min = ''
+    for key in d:
+        chain = find_chain(d[key])
+        if len(chain) < len(str_min):
+            str_min = chain
+        elif str_min == '':
+            str_min = chain
+    return str_min
 
 
 def check_tm(l):
@@ -456,34 +490,16 @@ def get_pores_from_db(d, db):
     :return: dictionary of classes:pores
     """
     new_d = {}
+    config = load_json("config.json")
     list_accession = []
-    if db == 'TCDB':
-        for key in d:
-            if key[0] == '1':
-                new_d[key] = d[key]
-        return new_d
-    elif db == 'mpm':
-        list_accession = ["aquaporins", "ion_channels"]
+    if db == 'TCDB' or db == 'mpm':
+        list_accession = config['pores']['database'][db]['classes']
     elif db == 'mpstruc':
-        list_accession = ["channels-mechanosensitive", "channels-potassium-sodium-proton-ion-selective",
-                          "channels-calcium-ion-selective", "channels-transient-receptor-potential-trp",
-                          "channels-other-ion-channels", "channels-fluc-family", "channels-urea-transporters",
-                          "channels-aquaporins-and-glyceroporins", "channels-formate-nitrite-transporter-fnt-family",
-                          "channels-gap-junctions", "channels-amt-mep-rh-proteins", "protein-1eod", "protein-2vl0",
-                          "protein-3ehz", "protein-6fl9", "outer-membrane-carboxylate-channels-occ", "protein-1yc9",
-                          "beta-barrel-membrane-proteins-porins-and-relatives", "protein-1ek9", "protein-4mt4",
-                          "adventitious-membrane-proteins-beta-sheet-pore-forming-toxins-attack-complexes"]
+        list_accession = config['pores']['database'][db]['all']['classes']
     elif db == 'mpstruc-alpha':
-        list_accession = ["channels-mechanosensitive", "channels-potassium-sodium-proton-ion-selective",
-                          "channels-calcium-ion-selective", "channels-transient-receptor-potential-trp",
-                          "channels-other-ion-channels", "channels-fluc-family", "channels-urea-transporters",
-                          "channels-aquaporins-and-glyceroporins", "channels-formate-nitrite-transporter-fnt-family",
-                          "channels-gap-junctions", "channels-amt-mep-rh-proteins", "protein-1eod", "protein-2vl0",
-                          "protein-3ehz", "protein-6fl9"]
+        list_accession = config['pores']['database']['mpstruc']['alpha']['classes']
     elif db == 'mpstruc-beta':
-        list_accession = ["outer-membrane-carboxylate-channels-occ", "protein-4mt4", "protein-1yc9",
-                          "beta-barrel-membrane-proteins-porins-and-relatives", "protein-1ek9",
-                          "adventitious-membrane-proteins-beta-sheet-pore-forming-toxins-attack-complexes"]
+        list_accession = config['pores']['database']['mpstruc']['beta']['classes']
     for key in d:
         if key in list_accession:
             new_d[key] = d[key]
@@ -672,7 +688,7 @@ if __name__ == "__main__":
     for i in range(len(ana_no_complet_TM_family)):
         print(ana_no_complet_TM_family[i])
     print(len(ana_no_complet_TM_family))
-    """
+    
 
     print(len(tm_to_mole))
     with open('pores.txt') as f:  # get the list of pores
@@ -690,5 +706,7 @@ if __name__ == "__main__":
     print('No UniProt: ' + str(len(tm_comp[6])))
     print(tm_comp)
     print(an.no_intersection_list(tm_comp[0], list_upper(pdbid_to_mole)))
+    """
+
 
 

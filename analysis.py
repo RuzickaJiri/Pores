@@ -201,6 +201,12 @@ def load_all_mole(path, tm, l):
 
 
 def analyze_property(l, prop):
+    """
+    rewritten method for faster loading of the given property from a json file
+    :param l: list of pdb ids
+    :param prop: string, property to analyze
+    :return: array of all property values from the list
+    """
     properties = []
     for pdbid in l:
         temp = get_property(load_json(pdbid), prop)
@@ -230,7 +236,7 @@ def get_property(d, prop):
         try:
             print(d['Config']['PdbId'])
         except KeyError:
-            print(d)
+            print(d['Config']['PdbId'])
 
 
 def get_stat_property(l, prop):
@@ -238,10 +244,8 @@ def get_stat_property(l, prop):
     returns the given property statistics (mean, stdev, min, max) of all pores in the list
     parameter - list of dictionaries from json files, string property
     """
-    properties = []
-    for d in l:
-        properties.append(get_property(d, prop))
-    return statistics.mean(properties), statistics.stdev(properties), min(properties), max(properties)
+    properties = analyze_property(l, prop)
+    return round(statistics.mean(properties),2), round(statistics.stdev(properties),2), min(properties), max(properties)
 
 
 def histogram_property(l, prop):
@@ -280,6 +284,12 @@ def hist_random_mole(l):
 
 
 def analyze_residues(l, place):
+    """
+    rewritten method for faster loading of residues from a json file
+    :param l: list of pdb ids
+    :param place: string, place specification to analyze (general, bottleneck)
+    :return: array of all residues from the json files of the given list
+    """
     all_residues = {}
     residues = []
     for pdbid in l:
@@ -549,6 +559,14 @@ def list_from_dict(d):
 
 
 def memprotmd_text_search(search_term, in_databases=["mpm", "TCDB", "mpstruc"], size_bias=0.1, n_results=10):
+    """
+    text research method from MemProt API GitHub
+    :param search_term: search term
+    :param in_databases: database
+    :param size_bias: size bias
+    :param n_results: number of results
+    :return: research result
+    """
     return requests.post(
 
         MEMPROTMD_ROOT_URI
@@ -565,6 +583,14 @@ def memprotmd_text_search(search_term, in_databases=["mpm", "TCDB", "mpstruc"], 
 
 
 def memprotmd_advanced_search(collection_name, query, projection, options):
+    """
+    advanced research method from MemProt API GitHub
+    :param collection_name: name of the collection
+    :param query: query
+    :param projection: projection
+    :param options: options
+    :return: advanced research
+    """
     return requests.post(
 
         MEMPROTMD_ROOT_URI
@@ -645,15 +671,15 @@ if __name__ == "__main__":
             my_pores_all[i] = my_pores_all[i].rstrip('\n')
     print(len(my_pores_all))
 
-    my_list = load_all(my_pores)  # load a list containing all jsons in form of python dicts
-    print(len(my_list))
-    print(my_list[1])
-    print(get_stat_property(my_list, 'charge'))
-    print(get_stat_property(my_list, 'hydrophobicity'))
-    print(get_stat_property(my_list, 'hydropathy'))
-    print(get_stat_property(my_list, 'polarity'))
-    print(get_stat_property(my_list, 'mutability'))
-    print(get_stat_property(my_list, 'length'))
+    # my_list = load_all(my_pores)  # load a list containing all jsons in form of python dicts
+    # print(len(my_list))
+    # print(my_list[1])
+    print(get_stat_property(my_pores, 'charge'))
+    print(get_stat_property(my_pores, 'hydrophobicity'))
+    print(get_stat_property(my_pores, 'hydropathy'))
+    print(get_stat_property(my_pores, 'polarity'))
+    print(get_stat_property(my_pores, 'mutability'))
+    print(get_stat_property(my_pores, 'length'))
     print('')
     # histogram_property(my_pores, 'charge')
     # histogram_property(my_pores, 'length')

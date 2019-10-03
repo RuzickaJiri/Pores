@@ -239,7 +239,10 @@ def compare_all(list_tmr, list_por):
     for i in range(len(pupper)):
         for j in range(len(list_tmr)):
             if pupper[i] in list_tmr[j][2] and list_tmr[j][1] != []:  # and len(re.findall('\d+', list_tmr[j][2][pupper[i]])) < 3:
-                result[pupper[i]] = compare_tm_structure(list_tmr[j], pupper[i])
+                if pupper[i] not in result:
+                    result[pupper[i]] = compare_tm_structure(list_tmr[j], pupper[i])
+                elif not result[pupper[i]] or result[pupper[i]] == 'No TM':
+                    result[pupper[i]] = compare_tm_structure(list_tmr[j], pupper[i])
             elif pupper[i] in list_tmr[j][2] and list_tmr[j][1] == []:
                 if pupper[i] not in result:
                     result[pupper[i]] = 'No TM'
@@ -296,7 +299,7 @@ def search_uniprot_line(list_tmr, pdbid):
     return l
 
 
-def filter_tm(t, pdbid):
+def filter_tm(t, pdbid, per, abs):
     """
     verifies if the structure approaches the entire TM part of the protein
     :param t: tuple
@@ -314,7 +317,7 @@ def filter_tm(t, pdbid):
             diff += (st1 - tm1)
         if (tm2 - st2) > 0:
             diff += (tm2 - st2)
-        if diff < (0.1*length + 5):
+        if diff < (per*length + abs):
             return True
     except:
         print(str(t) + pdbid)
@@ -394,7 +397,7 @@ def find_min_chain(d):
     return str_min
 
 
-def check_tm(l):
+def check_tm(l, per, abs):
     """
     finds the pdb ids apt to have pores
     :param l: list of pdbids to check
@@ -424,7 +427,7 @@ def check_tm(l):
                 print(pdbid)
                 lines = search_uniprot_line(list_data, pdbid)
                 for line in lines:
-                    if filter_tm(line, pdbid):
+                    if filter_tm(line, pdbid, per, abs):
                         pdbid_to_mole_filter.append(pdbid)  # possible plurality
                         break
                     else:
@@ -454,6 +457,23 @@ def get_pores_from_cdb():
         content = json.load(f)
         for pdbid in content:
             if content[pdbid]['counts'][2] != 0:
+                pores.append(pdbid)
+    return pores
+
+
+def get_data_from_cdb(l):
+    """
+    compares the channels db entries with the pdb entries in the list
+    :param l: list of pdb ids
+    :return: list of commun entries
+    """
+    pores = []
+    if not os.path.isfile('content.json'):
+        urllib.request.urlretrieve("https://webchem.ncbr.muni.cz/API/ChannelsDB/Content", 'content.json')
+    with open('content.json', 'r') as f:
+        content = json.load(f)
+        for pdbid in l:
+            if pdbid in content:
                 pores.append(pdbid)
     return pores
 
@@ -678,7 +698,7 @@ if __name__ == "__main__":
     print(an.no_intersection_list(no_complet_TM_cdb, pores_tocdb_UPPER))
     print(len(an.no_intersection_list(no_complet_TM_family, pores_tocdb_UPPER)))
 
-    """
+
     ana_no_complet_TM_family = []
     for pdbid in an.no_intersection_list(no_complet_TM_family, pores_tocdb_UPPER):
         for i in list_pores:
@@ -695,7 +715,7 @@ if __name__ == "__main__":
         my_pores_new = f.readlines()
         for i in range(len(my_pores_new)):
             my_pores_new[i] = my_pores_new[i].rstrip('\n')
-    tm_comp = check_tm(list_lower(tm_to_mole))
+    tm_comp = check_tm(list_lower(tm_to_mole), 0.1, 5)
     print(len(tm_to_mole))
     print('MOLE - TM + Family: ' + str(len(tm_comp[0])))
     print('MOLE - Filter + Family: ' + str(len(tm_comp[1])))
@@ -706,7 +726,7 @@ if __name__ == "__main__":
     print('No UniProt: ' + str(len(tm_comp[6])))
     print(tm_comp)
     print(an.no_intersection_list(tm_comp[0], list_upper(pdbid_to_mole)))
-    """
+
 
 
 

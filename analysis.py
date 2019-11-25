@@ -65,12 +65,17 @@ def download_jsons(l):
         download_file(name)
 
 
-def load_json(pdbid):
+def load_json(pdbid, mem):
     """"
     returns a dictionary issued from the json file specified as a parameter
     """
-    if os.path.exists(pdbid + ".json"):
-        with open(pdbid + ".json") as f:
+
+    # if os.path.exists(pdbid + ".json"):
+      #  with open(pdbid + ".json") as f:
+       #     py_json = json.load(f)
+        #return py_json
+    if mem:
+        with open("C:\Computations\Calc\FromMoleMem\\" + pdbid + "\\json\data.json") as f:
             py_json = json.load(f)
         return py_json
     else:
@@ -200,7 +205,7 @@ def load_all_mole(path, tm, l):
 # Properties analysis
 
 
-def analyze_property(l, prop):
+def analyze_property(l, prop, mem):
     """
     rewritten method for faster loading of the given property from a json file
     :param l: list of pdb ids
@@ -209,7 +214,7 @@ def analyze_property(l, prop):
     """
     properties = []
     for pdbid in l:
-        temp = get_property(load_json(pdbid), prop)
+        temp = get_property(load_json(pdbid, mem), prop)
         if temp is not None:
             properties.append(temp)
     return properties
@@ -223,12 +228,37 @@ def get_property(d, prop):
     try:
         if prop == 'length':
             if 'channels' in d:
-                return d['channels']['transmembranePores'][0]['layers']['layersInfo'][-1]['layerGeometry']['endDistance']
+                try:
+                    return d['channels']['transmembranePores'][0]['layers']['layersInfo'][-1]['layerGeometry']['endDistance']
+                except IndexError:
+                    return d['channels']['reviewedChannels'][0]['layers']['layersInfo'][-1]['layerGeometry']['endDistance']
             else:
                 return d['Channels']['Paths'][0]['Layers']['LayersInfo'][-1]['LayerGeometry']['EndDistance']
+        elif prop == 'bottleneck':
+            if 'channels' in d:
+                try:
+                    for i in range(len(d['channels']['transmembranePores'][0]['layers']['layersInfo'])):
+                        if d['channels']['transmembranePores'][0]['layers']['layersInfo'][i]['layerGeometry']['bottleneck']:
+                            return d['channels']['transmembranePores'][0]['layers']['layersInfo'][i]['minRadius']
+                except IndexError:
+                    for i in range(len(d['channels']['transmembranePores'][0]['layers']['layersInfo'])):
+                        if d['channels']['reviewedChannels'][0]['layers']['layersInfo'][i]['layerGeometry']['bottleneck']:
+                            return d['channels']['reviewedChannels'][0]['layers']['layersInfo'][i]['minRadius']
+            else:
+                for i in range(len(d['Channels']['Paths'][0]['Layers']['LayersInfo'])):
+                    if 'Bottleneck' in d['Channels']['Paths'][0]['Layers']['LayersInfo'][i]['LayerGeometry']:
+                        return d['Channels']['Paths'][0]['Layers']['LayersInfo'][i]['LayerGeometry']['MinRadius']
+        elif prop == 'residues#':
+            if 'channels' in d:
+                return len(d['channels']['transmembranePores'][0]['layers']['residueFlow'])  # list
+            else:
+                return len(d['Channels']['Paths'][0]['Layers']['ResidueFlow'])
         else:
             if 'channels' in d:
-                return d['channels']['transmembranePores'][0]['properties'][prop]
+                try:
+                    return d['channels']['transmembranePores'][0]['properties'][prop]
+                except IndexError:
+                    return d['channels']['reviewedChannels'][0]['properties'][prop]
             else:
                 propy = prop[0].upper() + prop[1:]
                 return d['Channels']['Paths'][0]['Properties'][propy]
@@ -236,25 +266,25 @@ def get_property(d, prop):
         try:
             print(d['Config']['PdbId'])
         except KeyError:
-            print(d['Config']['PdbId'])
+            print(d)# ['Config']['PdbId'])
 
 
-def get_stat_property(l, prop):
+def get_stat_property(l, prop, mem):
     """"
     returns the given property statistics (mean, stdev, min, max) of all pores in the list
     parameter - list of dictionaries from json files, string property
     """
-    properties = analyze_property(l, prop)
+    properties = analyze_property(l, prop, mem)
     return round(statistics.mean(properties),2), round(statistics.stdev(properties),2), min(properties), max(properties)
 
 
-def histogram_property(l, prop):
+def histogram_property(l, prop, mem):
     """"
     returns the histogram of the given property of all pores in the list
     parameter - list of dictionaries from json files, the string property
     """
     num_bins = 75
-    arr = analyze_property(l, prop)
+    arr = analyze_property(l, prop, mem)
     n, bins, patches = plt.hist(arr, num_bins, facecolor='black', alpha=0.5)
     plt.xlabel(prop)
     plt.ylabel('Quantity')
